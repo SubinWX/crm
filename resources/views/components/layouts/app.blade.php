@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ $title ?? 'Dashboard' }} · {{ app_name() }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <x-brand-head />
+    @livewireStyles
+</head>
+<body class="min-h-screen" x-data="{ nav: false }">
+    @php
+        $user = auth()->user();
+        // Main menus and their sub-items: [route, label, icon, visible, active pattern].
+        $nav = [
+            ['Clients & Work', 'users', [
+                ['clients.index', 'Clients', 'users', $user->can('clients.view'), 'clients.*'],
+                ['tasks.index', 'Tasks & Follow-ups', 'check', $user->can('tasks.view'), 'tasks.*'],
+                ['projects.index', 'Projects & Services', 'document', $user->can('workspace') && $user->can('clients.view'), 'projects.*'],
+                ['renewals.index', 'Hosting & Renewals', 'server', $user->can('workspace') && $user->can('clients.view'), 'renewals.*'],
+                ['posters.index', 'Social Media Posters', 'photo', $user->can('posters.view'), 'posters.*'],
+                ['equipment.index', $user->isSuperAdmin() ? 'Equipment' : 'My Equipment', 'desktop', true, 'equipment.*'],
+            ]],
+            ['Sales', 'document', [
+                ['leads.index', 'Leads', 'users', $user->can('sales.manage'), 'leads.*'],
+                ['quotes.index', 'Quotes & Proposals', 'document', $user->can('sales.manage'), 'quotes.*'],
+            ]],
+            ['Support', 'bell', [
+                ['support.tickets.index', 'Support Tickets', 'bell', $user->can('support.manage'), 'support.tickets.*'],
+                ['support.portal-users', 'Portal Users', 'users', $user->can('portal-users.manage'), 'support.portal-users'],
+            ]],
+            ['Finance', 'cash', [
+                ['invoices.index', 'Invoices', 'document', $user->can('finance'), 'invoices.*'],
+                ['payments.index', 'Payments', 'cash', $user->can('finance'), 'payments.*'],
+                ['expenses.index', 'Expenses', 'receipt', $user->can('finance'), 'expenses.*'],
+            ]],
+            ['Administration', 'shield', [
+                ['users.index', 'Users', 'shield', $user->can('admin'), 'users.*'],
+                ['activity.index', 'Activity Log', 'clock', $user->can('admin'), 'activity.*'],
+                ['settings.index', 'Settings', 'cog', $user->can('admin'), ['settings.*', 'quote-templates.*']],
+            ]],
+        ];
+        $openTickets = $user->can('support.manage') ? \App\Models\SupportTicket::where('status', 'open')->count() : 0;
+    @endphp
+
+    {{-- Sidebar: fixed on desktop, slide-over drawer on tablets. Each main menu opens to show its sub-menu. --}}
+    <div x-show="nav" x-cloak x-transition.opacity class="fixed inset-0 z-30 bg-ink-900/50 lg:hidden" @click="nav = false"></div>
+    <aside class="fixed inset-y-0 left-0 z-40 flex w-60 -translate-x-full flex-col bg-ink-900 transition-transform lg:translate-x-0"
+           :class="nav && 'translate-x-0'">
+        <a href="{{ route('dashboard') }}" class="flex h-14 shrink-0 items-center gap-2.5 px-4 text-white">
+            <x-brand-mark />
+            <span class="truncate text-sm font-semibold">{{ app_name() }}</span>
+        </a>
+        <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-3" aria-label="Main">
+            <a href="{{ route('dashboard') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('dashboard')]) @if (request()->routeIs('dashboard')) aria-current="page" @endif>
+                <x-icon name="home" /> Dashboard
+            </a>
+            <a href="{{ route('calendar') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('calendar')]) @if (request()->routeIs('calendar')) aria-current="page" @endif>
+                <x-icon name="calendar" /> Calendar
+            </a>
+
+            @foreach ($nav as [$group, $groupIcon, $items])
+                @php
+                    $visible = collect($items)->filter(fn ($i) => $i[3]);
+                    $active = $visible->contains(fn ($i) => request()->routeIs($i[4]));
+                    $key = 'crm-nav-'.\Illuminate\Support\Str::slug($group);
+                @endphp
+                @if ($visible->isNotEmpty())
+                    {{-- Open state is remembered per browser; the menu holding the current page is always open. --}}
+                    <div x-data="{ open: @js($active) || localStorage.getItem('{{ $key }}') === '1' }" x-init="$watch('open', v => localStorage.setItem('{{ $key }}', v ? '1' : '0'))">
+                        <button type="button" class="nav-link w-full cursor-pointer {{ $active ? 'text-white' : '' }}" @click="open = !open" :aria-expanded="open" aria-controls="{{ $key }}">
+                            <x-icon :name="$groupIcon" />
+                            <span class="flex-1 text-left">{{ $group }}</span>
+                            @if ($group === 'Support' && $openTickets) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" x-show="!open">{{ $openTickets }}</span> @endif
+                            <x-icon name="chevron" class="size-3.5 transition-transform" ::class="open && 'rotate-180'" />
+                        </button>
+                        <div id="{{ $key }}" x-show="open" x-collapse.duration.150ms @unless ($active) x-cloak @endunless class="mt-0.5 ml-[1.15rem] space-y-0.5 border-l border-white/10 pl-2">
+                            @foreach ($visible as [$route, $label, $icon, , $pattern])
+                                <a href="{{ route($route) }}" @class(['nav-link py-1.5 text-[13px]', 'nav-link-active' => request()->routeIs($pattern)]) @if (request()->routeIs($pattern)) aria-current="page" @endif>
+                                    {{ $label }}
+                                    @if ($route === 'support.tickets.index' && $openTickets) <span class="ml-auto rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">{{ $openTickets }}</span> @endif
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            @endforeach
+        </nav>
+        <div class="shrink-0 border-t border-white/10 p-3">
+            <a href="{{ route('help') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('help')])><x-icon name="book" /> Help &amp; Tutorial</a>
+        </div>
+    </aside>
+
+    <div class="lg:pl-60">
+        <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-stone-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+            <button type="button" class="btn-ghost lg:hidden" @click="nav = true" aria-label="Open navigation"><x-icon name="menu" class="size-5" /></button>
+            <p class="truncate text-sm font-semibold text-stone-900">{{ $title ?? '' }}</p>
+            <div class="ml-auto flex items-center gap-2">
+                <span class="hidden text-xs text-stone-500 md:inline">{{ \Illuminate\Support\Carbon::now(crm_tz())->format('D, d M Y') }}</span>
+                <livewire:notifications.bell />
+                <livewire:account.menu />
+            </div>
+        </header>
+
+        <main class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
+            @if (session('status'))
+                <div class="mb-4 rounded-md border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm text-brand-800" role="status">{{ session('status') }}</div>
+            @endif
+            {{ $slot }}
+        </main>
+    </div>
+
+    {{-- Toasts raised with $this->dispatch('toast', message: '...') --}}
+    <div x-data="{ toasts: [] }" class="pointer-events-none fixed right-4 bottom-4 z-50 space-y-2"
+         @toast.window="const t = { id: Date.now(), message: $event.detail.message, type: $event.detail.type || 'ok' }; toasts.push(t); setTimeout(() => toasts = toasts.filter(x => x.id !== t.id), 4000)">
+        <template x-for="t in toasts" :key="t.id">
+            <div class="pointer-events-auto rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-lg"
+                 :class="t.type === 'error' ? 'bg-red-700' : 'bg-ink-800'" role="status" x-text="t.message"></div>
+        </template>
+    </div>
+    @livewireScripts
+</body>
+</html>

@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../../app/**/*.php';
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    /* Brand: deep pine. Red is reserved for urgency (overdue / due soon). */
+    --color-brand-50: #eef7f4;
+    --color-brand-100: #d6ece5;
+    --color-brand-200: #aed9cc;
+    --color-brand-500: #1f8a70;
+    --color-brand-600: #15735c;
+    --color-brand-700: #115c4a;
+    --color-brand-800: #0f4a3c;
+    --color-ink-900: #111917;
+    --color-ink-800: #18231f;
+    --color-ink-700: #23332e;
+    --color-paper: #f6f6f3;
+}
+
+@layer base {
+    body { @apply bg-paper text-stone-800 antialiased; }
+    [x-cloak] { display: none !important; }
+    :focus-visible { @apply outline-2 outline-offset-2 outline-brand-500; }
+}
+
+@layer components {
+    .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-ghost { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50; }
+    .btn-primary { @apply bg-brand-600 text-white hover:bg-brand-700; }
+    .btn-secondary { @apply border border-stone-300 bg-white text-stone-700 hover:bg-stone-50; }
+    .btn-danger { @apply border border-red-200 bg-white text-red-700 hover:bg-red-50; }
+    .btn-ghost { @apply px-2 py-1 text-stone-600 hover:bg-stone-100 hover:text-stone-900; }
+    .btn-sm { @apply px-2.5 py-1.5 text-xs; }
+    .link { @apply font-medium text-brand-700 underline-offset-2 hover:underline; }
+
+    .input { @apply block w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none disabled:bg-stone-100; }
+    /* Dropdowns: replace the browser arrow (which sits hard against the edge) with one that has breathing room. */
+    select.input {
+        appearance: none;
+        padding-right: 2.5rem;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2378716c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.1rem;
+        text-overflow: ellipsis;
+    }
+    select.input:disabled { opacity: 0.7; }
+    .label { @apply mb-1 block text-xs font-semibold tracking-wide text-stone-600 uppercase; }
+    .field-error { @apply mt-1 text-xs font-medium text-red-700; }
+
+    .card { @apply rounded-lg border border-stone-200 bg-white; }
+    .card-header { @apply flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3; }
+    .card-title { @apply text-sm font-semibold text-stone-900; }
+
+    .table-wrap { @apply overflow-x-auto; }
+    .table { @apply min-w-full text-sm; }
+    .table thead th { @apply border-b border-stone-200 bg-stone-50 px-3 py-2.5 text-left text-xs font-semibold text-stone-500 uppercase; }
+    .table tbody td { @apply border-b border-stone-100 px-3 py-3 align-middle text-stone-700; }
+    .table tbody tr:last-child td { @apply border-b-0; }
+    .table tbody tr:hover td { @apply bg-stone-50/60; }
+    .table .num { @apply text-right tabular-nums whitespace-nowrap; }
+
+    .badge, .badge-gray, .badge-green, .badge-blue, .badge-amber, .badge-red, .badge-red-solid, .badge-red-strong { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap; }
+    .badge-gray { @apply bg-stone-100 text-stone-700; }
+    .badge-green { @apply bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 ring-inset; }
+    .badge-blue { @apply bg-sky-50 text-sky-800 ring-1 ring-sky-200 ring-inset; }
+    .badge-amber { @apply bg-amber-50 text-amber-800 ring-1 ring-amber-200 ring-inset; }
+    .badge-red { @apply bg-red-50 text-red-700 ring-1 ring-red-200 ring-inset; }
+    .badge-red-solid { @apply bg-red-600 text-white; }
+    .badge-red-strong { @apply bg-red-100 text-red-800 ring-1 ring-red-300 ring-inset; }
+
+    .tab { @apply -mb-px border-b-2 border-transparent px-1 pb-2.5 text-sm font-medium whitespace-nowrap text-stone-500 hover:text-stone-800 cursor-pointer; }
+    .tab-active { @apply border-brand-600 text-brand-700; }
+
+    .nav-link { @apply flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-stone-300 hover:bg-white/5 hover:text-white; }
+    .nav-link-active { @apply bg-white/10 text-white; }
+}

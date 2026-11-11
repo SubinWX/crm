@@ -1,0 +1,168 @@
+<?php
+
+use App\Http\Controllers\Auth\InvitationController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\BrandingController;
+use App\Http\Controllers\ExportController;
+use App\Http\Controllers\FileController;
+use App\Http\Controllers\Portal\AuthController as PortalAuth;
+use App\Http\Controllers\Portal\GoogleController;
+use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SupportAttachmentController;
+use App\Livewire;
+use Illuminate\Support\Facades\Route;
+
+// Logo and favicon (public: shown on sign-in pages and the support portal)
+Route::get('/branding/{kind}', BrandingController::class)->name('branding.asset');
+
+Route::middleware('guest:web')->group(function () {
+    Route::get('/login', [LoginController::class, 'create'])->name('login');
+    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:20,1');
+    // Staff sign in at /staff. (/login is for Super Admins and Sub Admins.)
+    Route::get('/staff', [LoginController::class, 'create'])->defaults('area', 'staff')->name('staff.login');
+    Route::post('/staff', [LoginController::class, 'store'])->defaults('area', 'staff')->middleware('throttle:20,1');
+    Route::redirect('/staff/login', '/staff');
+    Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'email'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'update'])->name('password.update');
+    Route::get('/invitation/{token}', [InvitationController::class, 'show'])->name('invitation.show');
+    Route::post('/invitation/{token}', [InvitationController::class, 'store'])->middleware('throttle:10,1')->name('invitation.accept');
+});
+
+Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth:web')->name('logout');
+
+// Team side. Pinned to the "web" guard so a support portal session can never satisfy it.
+Route::middleware(['auth:web', 'active'])->group(function () {
+    Route::get('/', Livewire\Dashboard::class)->name('dashboard');
+    Route::get('/notifications', Livewire\Notifications\Center::class)->name('notifications');
+    Route::view('/help', 'help')->name('help');
+    Route::get('/calendar', Livewire\Calendar\Index::class)->name('calendar');
+    // Headshots appear next to names across the app, so any signed-in user may load them.
+    Route::get('/users/{user}/avatar', [FileController::class, 'userAvatar'])->name('users.avatar');
+
+    // Clients, hosting and client files
+    Route::middleware('can:clients.view')->group(function () {
+        Route::get('/clients', Livewire\Clients\Index::class)->name('clients.index');
+        Route::get('/clients/create', Livewire\Clients\Form::class)->middleware('can:clients.create')->name('clients.create');
+        Route::get('/clients/{client}', Livewire\Clients\Show::class)->middleware('can:client.access,client')->name('clients.show');
+        Route::get('/clients/{client}/logo', [FileController::class, 'clientLogo'])->middleware('can:client.access,client')->name('clients.logo');
+        Route::get('/clients/{client}/edit', Livewire\Clients\Form::class)->middleware('can:client.update,client')->name('clients.edit');
+        // Hosting now lives inside Hosting & Renewals; the old address still works.
+        Route::redirect('/hosting', '/renewals?type=hosting')->name('hosting.index');
+        Route::get('/client-files/{clientFile}', [FileController::class, 'clientFile'])->name('files.client');
+    });
+
+    Route::get('/equipment', Livewire\Equipment\Index::class)->name('equipment.index');
+
+    // Shared team areas: everyone except Sub Admins (uploads need posters.manage)
+    Route::middleware('can:workspace')->group(function () {
+        Route::get('/tasks', Livewire\Tasks\Index::class)->name('tasks.index');
+        Route::get('/posters', Livewire\Posters\Index::class)->name('posters.index');
+        Route::get('/posters/{poster}/image', [FileController::class, 'posterImage'])->name('posters.image');
+        Route::get('/posters/{poster}/thumb', [FileController::class, 'posterThumb'])->name('posters.thumb');
+        Route::get('/posters/{poster}/download', [FileController::class, 'posterDownload'])->name('posters.download');
+    });
+
+    // Finance: Super Admins only
+    Route::middleware('can:finance')->group(function () {
+        Route::get('/invoices', Livewire\Invoices\Index::class)->name('invoices.index');
+        Route::get('/invoices/export-pdf', [ReportController::class, 'invoices'])->name('invoices.export');
+        Route::get('/invoices/create', Livewire\Invoices\Form::class)->name('invoices.create');
+        Route::get('/invoices/{invoice}', Livewire\Invoices\Show::class)->name('invoices.show');
+        Route::get('/invoices/{invoice}/edit', Livewire\Invoices\Form::class)->name('invoices.edit');
+        Route::get('/invoices/{invoice}/pdf', [FileController::class, 'invoicePdf'])->name('invoices.pdf');
+        Route::get('/invoices/{invoice}/uploaded-copy', [FileController::class, 'invoiceUpload'])->name('invoices.uploaded');
+        Route::get('/payments', Livewire\Payments\Index::class)->name('payments.index');
+        Route::get('/payments/export-pdf', [ReportController::class, 'payments'])->name('payments.export');
+        Route::get('/payments/create', Livewire\Payments\Form::class)->name('payments.create');
+        Route::get('/payments/{payment}', Livewire\Payments\Form::class)->name('payments.edit');
+        Route::get('/expenses', Livewire\Expenses\Index::class)->name('expenses.index');
+        Route::get('/expenses/export', [FileController::class, 'expensesCsv'])->name('expenses.export');
+        Route::get('/expenses/export-pdf', [ReportController::class, 'expenses'])->name('expenses.export-pdf');
+        Route::get('/expenses/{expense}/receipt', [FileController::class, 'expenseReceipt'])->name('expenses.receipt');
+    });
+
+    // Sales: quotes & proposals (leads and follow-ups are added below)
+    Route::middleware('can:sales.manage')->group(function () {
+        Route::get('/quotes', Livewire\Quotes\Index::class)->name('quotes.index');
+        Route::get('/quotes/create', Livewire\Quotes\Form::class)->name('quotes.create');
+        Route::get('/quotes/{quote}', Livewire\Quotes\Show::class)->name('quotes.show');
+        Route::get('/quotes/{quote}/edit', Livewire\Quotes\Form::class)->name('quotes.edit');
+        Route::get('/quotes/{quote}/pdf', [QuoteController::class, 'pdf'])->name('quotes.pdf');
+        Route::get('/quotes/{quote}/revisions/{revision}/pdf', [QuoteController::class, 'revision'])->name('quotes.revision');
+        Route::get('/quote-files/{file}', [QuoteController::class, 'file'])->name('quotes.file');
+        Route::get('/leads', Livewire\Leads\Index::class)->name('leads.index');
+        Route::get('/leads/export', [ExportController::class, 'leads'])->name('leads.export');
+        Route::get('/leads/{lead}', Livewire\Leads\Show::class)->name('leads.show');
+    });
+
+    // Team work areas: everyone except Sub Admins; each screen checks its own permission as well
+    Route::middleware('can:workspace')->group(function () {
+        Route::get('/import', Livewire\Data\Import::class)->name('import');
+        Route::middleware('can:clients.view')->group(function () {
+            Route::get('/projects', Livewire\Work\Projects::class)->name('projects.index');
+            Route::get('/renewals', Livewire\Work\Renewals::class)->name('renewals.index');
+        });
+        Route::get('/clients-export', [ExportController::class, 'clients'])->middleware('can:clients.manage')->name('clients.export');
+    });
+
+    // Support desk (team side of the support portal)
+    Route::middleware('can:support.manage')->group(function () {
+        Route::get('/support-desk/tickets', Livewire\Support\Tickets::class)->name('support.tickets.index');
+        Route::get('/support-desk/tickets/{ticket}', Livewire\Support\TicketShow::class)->name('support.tickets.show');
+        Route::get('/support-desk/attachments/{attachment}', [SupportAttachmentController::class, 'staff'])->name('support.attachments');
+    });
+    Route::get('/support-desk/portal-users', Livewire\Support\PortalUsers::class)->middleware('can:portal-users.manage')->name('support.portal-users');
+
+    // Administration: Super Admins only
+    Route::middleware('can:admin')->group(function () {
+        Route::get('/users', Livewire\Users\Index::class)->name('users.index');
+        Route::get('/settings', Livewire\Settings\Index::class)->name('settings.index');
+        Route::get('/settings/quote-templates', Livewire\Quotes\Templates::class)->name('quote-templates.index');
+        Route::get('/settings/quote-templates/create', Livewire\Quotes\TemplateForm::class)->name('quote-templates.create');
+        Route::get('/settings/quote-templates/{template}/edit', Livewire\Quotes\TemplateForm::class)->name('quote-templates.edit');
+        Route::get('/activity', Livewire\Activity\Index::class)->name('activity.index');
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Public support portal: /support
+|--------------------------------------------------------------------------
+| Separate accounts (the "portal" guard). Link to /support from your website footer.
+*/
+Route::prefix('support')->name('portal.')->group(function () {
+    Route::get('/', [PortalAuth::class, 'home'])->name('home');
+
+    Route::middleware('guest:portal')->group(function () {
+        Route::get('/login', [PortalAuth::class, 'showLogin'])->name('login');
+        Route::post('/login', [PortalAuth::class, 'login'])->middleware('throttle:20,1');
+        Route::get('/register', [PortalAuth::class, 'showRegister'])->name('register');
+        Route::post('/register', [PortalAuth::class, 'register'])->middleware('throttle:10,1');
+        Route::get('/forgot-password', [PortalAuth::class, 'showForgot'])->name('password.request');
+        Route::post('/forgot-password', [PortalAuth::class, 'sendReset'])->middleware('throttle:6,1')->name('password.email');
+        Route::get('/reset-password/{token}', [PortalAuth::class, 'showReset'])->name('password.reset');
+        Route::post('/reset-password', [PortalAuth::class, 'reset'])->name('password.update');
+        Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('google');
+        Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
+    });
+
+    Route::middleware(['auth:portal', 'portal.active'])->group(function () {
+        Route::post('/logout', [PortalAuth::class, 'logout'])->name('logout');
+        Route::get('/verify-email', [PortalAuth::class, 'verifyNotice'])->name('verify.notice');
+        Route::post('/verify-email', [PortalAuth::class, 'resendVerification'])->middleware('throttle:6,1')->name('verify.resend');
+
+        // Tickets need a confirmed email address.
+        Route::middleware('portal.verified')->group(function () {
+            Route::get('/tickets', Livewire\Portal\Tickets::class)->name('tickets.index');
+            Route::get('/tickets/new', Livewire\Portal\TicketCreate::class)->name('tickets.create');
+            Route::get('/tickets/{number}', Livewire\Portal\TicketShow::class)->name('tickets.show');
+            Route::get('/attachments/{attachment}', [SupportAttachmentController::class, 'portal'])->name('attachments');
+        });
+    });
+
+    Route::get('/verify-email/{id}/{hash}', [PortalAuth::class, 'verify'])->middleware(['signed', 'throttle:12,1'])->name('verify');
+});
