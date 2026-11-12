@@ -153,7 +153,7 @@ class SubAdminAndEquipmentTest extends TestCase
             ->call('edit', $user->id)->set('form.password', 'short')->call('save')->assertHasErrors('form.password');
 
         // No password → invitation email, and the invitation link is shown once to the admin.
-        $component = Livewire::actingAs($this->admin)->test(UsersIndex::class)
+        $component = Livewire::actingAs($this->admin)->test(UsersIndex::class, ['scope' => 'staff'])
             ->call('create')->set('form.name', 'Invited Person')->set('form.email', 'invited@agency.test')
             ->set('form.role', 'staff')->call('save')->assertHasNoErrors();
         $invited = User::where('email', 'invited@agency.test')->firstOrFail();

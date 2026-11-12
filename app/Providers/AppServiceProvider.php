@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\JobApplication;
 use App\Models\JobVacancy;
 use App\Models\Lead;
+use App\Models\LeaveRequest;
 use App\Models\Payment;
 use App\Models\PortalUser;
 use App\Models\Poster;
@@ -21,6 +22,7 @@ use App\Models\Renewal;
 use App\Models\Setting;
 use App\Models\SupportTicket;
 use App\Models\Task;
+use App\Models\TimeEntry;
 use App\Models\User;
 use App\Support\Branding;
 use App\Support\MailSettings;
@@ -61,6 +63,8 @@ class AppServiceProvider extends ServiceProvider
             'renewal' => Renewal::class,
             'support_ticket' => SupportTicket::class,
             'portal_user' => PortalUser::class,
+            'time_entry' => TimeEntry::class,
+            'leave_request' => LeaveRequest::class,
             'job_vacancy' => JobVacancy::class,
             'job_application' => JobApplication::class,
         ]);
@@ -116,6 +120,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Support portal accounts: Super Admins manage all of them; Sub Admins add and manage their own.
         Gate::define('portal-users.manage', fn (User $user) => $user->isSuperAdmin() || $user->isSubAdmin());
+
+        // Staff accounts and their access: Super Admins and Admins. (Admin accounts themselves stay with Super Admins: the "admin" gate.)
+        Gate::define('staff.manage', fn (User $user) => $user->isSuperAdmin() || $user->isSubAdmin());
 
         // Shared team areas (tasks, posters, the hosting overview): everyone except Sub Admins.
         Gate::define('workspace', fn (User $user) => ! $user->isSubAdmin());

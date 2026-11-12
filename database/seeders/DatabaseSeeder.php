@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
         'payment_method' => ['Bank Transfer (NEFT/IMPS)', 'UPI', 'Cash', 'Cheque', 'Credit / Debit Card', 'Payment Gateway', 'Other'],
         'equipment_type' => ['Laptop', 'Desktop', 'Monitor', 'Mobile Phone', 'Tablet', 'Keyboard & Mouse', 'Headset', 'Camera', 'Furniture', 'Software Licence', 'Other'],
         'expense_link' => ['Office', 'Self', 'Other'],
+        'leave_type' => ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Unpaid Leave'],
         'job_department' => ['Development', 'Design', 'Digital Marketing', 'SEO', 'Content', 'Sales', 'Accounts', 'HR & Admin'],
         'expense_category' => ['Hosting & Domains', 'Software Subscriptions', 'Advertising', 'Contractors', 'Office', 'Travel', 'Other'],
     ];

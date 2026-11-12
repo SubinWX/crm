@@ -10,12 +10,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
-use Livewire\Attributes\Title;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-#[Title('Users')]
 class Index extends Component
 {
     use WithFileUploads;
@@ -25,7 +24,15 @@ class Index extends Component
 
     public bool $removePhoto = false;
 
-    /** super_admin | sub_admin | staff */
+    /**
+     * Which accounts this screen manages, set by the route:
+     *   "admins" (Administration → Users): Super Admins and Admins. Super Admins only.
+     *   "staff"  (Administration → Staff): Staff accounts and their access. Super Admins and Admins.
+     */
+    #[Locked]
+    public string $scope = 'admins';
+
+    /** super_admin | sub_admin on the Users screen; always staff on the Staff screen. */
     #[Url(except: 'super_admin')]
     public string $role = 'super_admin';
 
@@ -38,21 +45,42 @@ class Index extends Component
     /** Shown once after an account is created: who, the login link and (for invitations) the invitation link. */
     public ?array $created = null;
 
-    public function boot(): void
+    public function mount(string $scope = 'admins'): void
     {
-        Gate::authorize('admin');
+        $this->scope = $scope === 'staff' ? 'staff' : 'admins';
+        $this->role = $this->scope === 'staff' ? User::ROLE_STAFF : (in_array($this->role, $this->roles(), true) ? $this->role : User::ROLE_SUPER_ADMIN);
+        $this->resetForm();
     }
 
-    public function mount(): void
+    public function booted(): void
     {
-        $this->resetForm();
+        Gate::authorize($this->scope === 'staff' ? 'staff.manage' : 'admin');
+    }
+
+    /** @return string[] the roles this screen may list, create and change */
+    protected function roles(): array
+    {
+        return $this->scope === 'staff' ? [User::ROLE_STAFF] : [User::ROLE_SUPER_ADMIN, User::ROLE_SUB_ADMIN];
+    }
+
+    public function updatedRole(): void
+    {
+        if (! in_array($this->role, $this->roles(), true)) {
+            $this->role = $this->roles()[0];
+        }
+    }
+
+    /** One of the accounts this screen manages; anything else is refused. */
+    protected function target(int $id): User
+    {
+        return User::whereIn('role', $this->roles())->find($id) ?? abort(403);
     }
 
     protected function resetForm(): void
     {
         $this->form = [
             'name' => '', 'email' => '', 'phone' => '', 'alt_phone' => '', 'date_of_birth' => '',
-            'role' => array_key_exists($this->role, User::ROLES) ? $this->role : 'super_admin', 'is_active' => true,
+            'role' => in_array($this->role, $this->roles(), true) ? $this->role : $this->roles()[0], 'is_active' => true,
             'password' => '',
             'permissions' => ['clients.view', 'tasks.manage'],
         ];
@@ -70,7 +98,7 @@ class Index extends Component
 
     public function edit(int $id): void
     {
-        $user = User::findOrFail($id);
+        $user = $this->target($id);
         $this->resetValidation();
         $this->photo = null;
         $this->removePhoto = false;
@@ -92,7 +120,7 @@ class Index extends Component
             'form.phone' => ['nullable', 'string', 'max:30'],
             'form.alt_phone' => ['nullable', 'string', 'max:30'],
             'form.date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
-            'form.role' => ['required', Rule::in(array_keys(User::ROLES))],
+            'form.role' => ['required', Rule::in($this->roles())],
             'form.is_active' => ['boolean'],
             // Optional: leave empty to send an invitation (new user) or keep the current password (existing user).
             'form.password' => ['nullable', 'string', Password::min(8), 'max:200'],
@@ -116,13 +144,16 @@ class Index extends Component
             'date_of_birth' => $this->form['date_of_birth'] ?: null,
             'role' => $this->form['role'],
             'is_active' => (bool) $this->form['is_active'],
-            // Only the options that exist for the chosen role are kept; Super Admins need none.
-            'permissions' => $this->form['role'] === User::ROLE_SUPER_ADMIN ? null
-                : array_values(array_intersect(User::grantable($this->form['role']), $this->form['permissions'])),
         ];
+        // Access: only options this person may give for the chosen role are taken from the form. Anything the
+        // account already has that they may not change (an area an Admin was not given) is left exactly as it was.
+        $mayGive = auth()->user()->assignablePermissions($data['role']);
+        $kept = $this->editingId ? array_diff(array_intersect(User::grantable($data['role']), $this->target($this->editingId)->permissions ?? []), $mayGive) : [];
+        $data['permissions'] = $data['role'] === User::ROLE_SUPER_ADMIN ? null
+            : array_values(array_intersect(User::grantable($data['role']), array_merge(array_intersect($mayGive, $this->form['permissions']), $kept)));
 
         if ($this->editingId) {
-            $user = User::findOrFail($this->editingId);
+            $user = $this->target($this->editingId);
             if ($message = $this->guardLastAdmin($user, $data['role'], $data['is_active'])) {
                 $this->addError('form.role', $message);
 
@@ -165,7 +196,7 @@ class Index extends Component
 
     public function resend(int $id): void
     {
-        $user = User::findOrFail($id);
+        $user = $this->target($id);
         abort_unless($user->hasPendingInvitation(), 422);
         $this->created = [
             'name' => $user->name, 'email' => $user->email, 'role' => $user->role_label,
@@ -176,7 +207,7 @@ class Index extends Component
     /** For someone who lost their phone: clears two-step login so they can sign in with the password and set it up again. */
     public function resetTwoFactor(int $id): void
     {
-        $user = User::findOrFail($id);
+        $user = $this->target($id);
         abort_if($user->id === auth()->id(), 422);
         $user->clearTwoFactor();
         activity('two_factor', "Two-step login reset for {$user->email} by a Super Admin", $user);
@@ -186,6 +217,7 @@ class Index extends Component
     /** Applies to Super Admins only. Whoever switches it on must already have it, so nobody is locked out by surprise. */
     public function setRequireTwoFactor(bool $on): void
     {
+        abort_unless(auth()->user()->isSuperAdmin() && $this->scope === 'admins', 403);
         if ($on && ! auth()->user()->hasTwoFactor()) {
             $this->dispatch('toast', message: 'Set up two-step login on your own account first (top-right menu → Two-step login).', type: 'error');
 
@@ -198,7 +230,7 @@ class Index extends Component
 
     public function toggleActive(int $id): void
     {
-        $user = User::findOrFail($id);
+        $user = $this->target($id);
         if ($message = $this->guardLastAdmin($user, $user->role, ! $user->is_active)) {
             $this->dispatch('toast', message: $message, type: 'error');
 
@@ -247,8 +279,12 @@ class Index extends Component
     public function render()
     {
         return view('livewire.users.index', [
-            'users' => User::withCount('equipment')->where('role', $this->role)->orderByDesc('is_active')->orderBy('name')->get(),
+            'users' => User::withCount('equipment')->where('role', in_array($this->role, $this->roles(), true) ? $this->role : $this->roles()[0])->orderByDesc('is_active')->orderBy('name')->get(),
             'counts' => collect(User::ROLES)->map(fn ($label, $role) => User::where('role', $role)->count())->all(),
-        ]);
+            'staffScope' => $this->scope === 'staff',
+            'roleTabs' => collect($this->roles())->mapWithKeys(fn ($role) => [$role => User::ROLES[$role].'s'])->all(),
+            // What the signed-in person may tick for the role in the form.
+            'mayGive' => auth()->user()->assignablePermissions($this->form['role'] ?? User::ROLE_STAFF),
+        ])->title($this->scope === 'staff' ? 'Staff' : 'Users');
     }
 }

@@ -127,8 +127,16 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
     // Team work areas: everyone except Sub Admins; each screen checks its own permission as well
     Route::middleware('can:workspace')->group(function () {
         Route::get('/import', Livewire\Data\Import::class)->name('import');
+
+        // Team: timesheets, leave and attendance. Each screen shows your own; "team.manage" adds the whole team.
+        Route::get('/timesheet', Livewire\Team\Timesheet::class)->name('timesheet');
+        Route::get('/timesheet/export', [ExportController::class, 'timesheet'])->name('timesheet.export');
+        Route::get('/leave', Livewire\Team\Leave::class)->name('leave');
+        Route::get('/attendance', Livewire\Team\Attendance::class)->name('attendance');
+        Route::get('/attendance/export', [ExportController::class, 'attendance'])->middleware('can:team.manage')->name('attendance.export');
         Route::middleware('can:clients.view')->group(function () {
             Route::get('/projects', Livewire\Work\Projects::class)->name('projects.index');
+            Route::get('/projects/{project}', Livewire\Work\ProjectShow::class)->name('projects.show');
             Route::get('/renewals', Livewire\Work\Renewals::class)->name('renewals.index');
         });
         Route::get('/clients-export', [ExportController::class, 'clients'])->middleware('can:clients.manage')->name('clients.export');
@@ -142,6 +150,9 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
         Route::get('/support-desk/page-settings', Livewire\PublicPages\PageSettings::class)->defaults('page', 'support')->name('support.settings');
     });
     Route::get('/support-desk/portal-users', Livewire\Support\PortalUsers::class)->middleware('can:portal-users.manage')->name('support.portal-users');
+
+    // Staff accounts and what each one can use: Super Admins and Admins.
+    Route::get('/staff-members', Livewire\Users\Index::class)->defaults('scope', 'staff')->middleware('can:staff.manage')->name('staff.index');
 
     // Administration: Super Admins only
     Route::middleware('can:admin')->group(function () {

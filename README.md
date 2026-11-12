@@ -63,7 +63,7 @@ php artisan crm:create-admin
 ```
 
 It asks for a name, email and password (or pass `--name= --email= --password=`). Sign in at
-`/login` (Super Admins and Sub Admins use `/login`; Staff use `/staff`), then add everyone else from **Users → Add user**. Either type a password for them
+`/login` (Super Admins and Admins use `/login`; Staff use `/staff`), then add everyone else from **Users → Add user**. Either type a password for them
 (the account works immediately; share the password privately) or leave it empty to email an
 invitation so they choose their own. Invitation links are valid for 7 days and can be re-sent.
 The Users screen always shows the login link to copy, and a Super Admin can set a new password
@@ -200,7 +200,7 @@ php artisan crm:send-reminders --date=2027-01-03
 
 ## Roles and permissions
 
-| Area | Super Admin | Staff | Sub Admin |
+| Area | Super Admin | Staff | Admin |
 |---|---|---|---|
 | Dashboard | Full | Team view | Own clients only |
 | Clients, hosting, client files | Yes | With `clients.view` / `clients.manage` | Add clients; view and edit only the clients they added (no archiving) |
@@ -214,7 +214,7 @@ php artisan crm:send-reminders --date=2027-01-03
 | Users, settings, activity log | Yes | No | No |
 
 Access is ticked per person in the user form (Users → Add/Edit → *Access*). Staff can be given any of the
-options; Sub Admins always keep "own clients only" and can additionally be given Sales, Support, Careers
+options; Admins always keep "own clients only" and can additionally be given Sales, Support, Careers
 or Finance, which show every record in those areas. Super Admins always have everything. Deactivating a user signs them out
 and blocks sign-in but never deletes them, so payments they received, tasks and log entries
 keep their name. The last active Super Admin cannot be deactivated or demoted.
@@ -293,7 +293,7 @@ the database first, as with any upgrade: `mysqldump client_crm > backup.sql`.
 
 ### Who can use them
 
-| Area | Super Admin | Staff | Sub Admin |
+| Area | Super Admin | Staff | Admin |
 |---|---|---|---|
 | Quote templates | Yes | No | No |
 | Leads, quotes, proposals, their PDFs, lead import/export | Yes | With `sales.manage` | No |
@@ -320,7 +320,7 @@ A public, separate section for clients at **`/support`** — link to it from you
   it to a CRM client. Super Admins and Staff with the `support.manage` permission can use it and
   are notified of new tickets in the notification bell and by email.
 - **Portal Users:** *Support → Portal Users* is the portal's login list. Super Admins manage all
-  accounts (add, set a password, link to a client, disable). Sub Admins can add portal users and
+  accounts (add, set a password, link to a client, disable). Admins can add portal users and
   manage the ones they added.
 
 ### Google sign-in (optional)
@@ -374,6 +374,29 @@ The two public areas share one header and footer and each have their own banner.
   in the browser.
 - **Help & Tutorial** (bottom of the sidebar, `/help`): a how-to guide for the team that shows
   only the sections the signed-in person can use.
+
+## Projects, timesheets, leave and attendance
+
+- **Projects** (`/projects`, detail at `/projects/{id}`): besides owner, status, deadline and milestone, a
+  project has a formatted description, start date, estimated hours and a team. The list and the detail page
+  show hours logged against the estimate, with a per-person split. Adding and editing needs `clients.manage`.
+- **Timesheet** (`/timesheet`): a Tracker tab with a start/stop timer (one running timer per person, shown in
+  the top bar, cut off at 12 hours if forgotten) and a one-line manual mode; entries are listed by day with
+  start and end times. Manual entries are 15 minutes to 24 hours a day, and the last 14 days are editable.
+  The Projects page lists time tracked by each person (today, week, month, all time). A project can be logged to by its team, or by anyone when it has no fixed team.
+- **Leave** (`/leave`): apply with a type (Settings → Dropdown values → Leave types), dates or a half day,
+  and a reason. Working days exclude weekly offs and holidays. Approvers are notified; the applicant is
+  told the decision. Paid types count against the yearly allowance.
+- **Attendance** (`/attendance`): check in and out, a personal month view, and for managers a team sheet
+  (P, HD, WFH, A marked; L, H, W derived from approved leave, holidays and weekly offs), holidays, weekly
+  off days and the leave allowance. Approved leave and holidays also appear on the Calendar.
+- **Accounts:** *Administration → Admins* (Super Admins only) holds Super Admin and Admin accounts and each
+  Admin's areas. *Administration → Staff* (Super Admins and Admins) holds staff accounts and their access. An
+  Admin can give staff the everyday areas, and a guarded area (sales, support, careers, finance, team) only
+  when a Super Admin has given that area to the Admin. The "Admin" role is `sub_admin` in the code.
+- **Who manages:** Super Admins, and Staff given `team.manage` (approve leave, edit attendance, see all
+  timesheets, CSV exports). Admins are outside the team and do not see these pages.
+- Tables: `project_user`, `time_entries`, `leave_requests`, `attendance_records`, `holidays`.
 
 ## Email Tools (signatures and templates)
 

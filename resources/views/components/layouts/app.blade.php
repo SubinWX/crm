@@ -25,6 +25,11 @@
                 ['posters.index', 'Social Media Posters', 'photo', $user->can('posters.view'), 'posters.*'],
                 ['equipment.index', $user->isSuperAdmin() ? 'Equipment' : 'My Equipment', 'desktop', true, 'equipment.*'],
             ]],
+            ['Team', 'clock', [
+                ['timesheet', 'Timesheet', 'clock', $user->can('workspace'), 'timesheet'],
+                ['leave', 'Leave', 'calendar', $user->can('workspace'), 'leave'],
+                ['attendance', 'Attendance', 'check', $user->can('workspace'), 'attendance'],
+            ]],
             ['Sales', 'document', [
                 ['leads.index', 'Leads', 'users', $user->can('sales.manage'), 'leads.*'],
                 ['quotes.index', 'Quotes & Proposals', 'document', $user->can('sales.manage'), 'quotes.*'],
@@ -53,7 +58,8 @@
                 ['gst.summary', 'GST Summary', 'document', $user->can('finance'), 'gst.*'],
             ]],
             ['Administration', 'shield', [
-                ['users.index', 'Users', 'shield', $user->can('admin'), 'users.*'],
+                ['users.index', 'Admins', 'shield', $user->can('admin'), 'users.*'],
+                ['staff.index', 'Staff', 'users', $user->can('staff.manage'), 'staff.index'],
                 ['activity.index', 'Activity Log', 'clock', $user->can('admin'), 'activity.*'],
                 ['settings.index', 'Settings', 'cog', $user->can('admin'), ['settings.index', 'quote-templates.*']],
                 ['settings.messaging', 'Email & WhatsApp', 'bell', $user->can('admin'), 'settings.messaging'],
@@ -62,6 +68,7 @@
             ]],
         ];
         $newApplications = $user->can('careers.manage') ? \App\Models\JobApplication::where('status', 'new')->count() : 0;
+        $pendingLeave = $user->can('team.manage') ? \App\Models\LeaveRequest::where('status', 'pending')->count() : 0;
         $openTickets = $user->can('support.manage') ? \App\Models\SupportTicket::where('status', 'open')->count() : 0;
     @endphp
 
@@ -94,6 +101,7 @@
                             <x-icon :name="$groupIcon" />
                             <span class="flex-1 text-left">{{ $group }}</span>
                             @if ($group === 'Support' && $openTickets) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" x-show="!open">{{ $openTickets }}</span> @endif
+                            @if ($group === 'Team' && $pendingLeave) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" x-show="!open" title="Leave requests to approve">{{ $pendingLeave }}</span> @endif
                             @if ($group === 'Careers' && $newApplications) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" x-show="!open" title="New applications">{{ $newApplications }}</span> @endif
                             <x-icon name="chevron" class="size-3.5 transition-transform" ::class="open && 'rotate-180'" />
                         </button>
@@ -102,6 +110,7 @@
                                 <a href="{{ route($route) }}" @class(['nav-link py-1.5 text-[13px]', 'nav-link-active' => request()->routeIs($pattern)]) @if (request()->routeIs($pattern)) aria-current="page" @endif>
                                     {{ $label }}
                                     @if ($route === 'support.tickets.index' && $openTickets) <span class="ml-auto rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">{{ $openTickets }}</span> @endif
+                                    @if ($route === 'leave' && $pendingLeave) <span class="ml-auto rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" title="Leave requests to approve">{{ $pendingLeave }}</span> @endif
                                     @if ($route === 'careers.applications' && $newApplications) <span class="ml-auto rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" title="New applications">{{ $newApplications }}</span> @endif
                                 </a>
                             @endforeach
@@ -120,6 +129,16 @@
             <button type="button" class="btn-ghost lg:hidden" @click="nav = true" aria-label="Open navigation"><x-icon name="menu" class="size-5" /></button>
             <p class="truncate text-sm font-semibold text-stone-900">{{ $title ?? '' }}</p>
             <div class="ml-auto flex items-center gap-2">
+                {{-- A timer left running shows here on every page, counting up, so it is never forgotten. --}}
+                @php $runningTimer = auth()->user()->can('workspace') ? \App\Models\TimeEntry::running()->with('project')->where('user_id', auth()->id())->latest('started_at')->first() : null; @endphp
+                @if ($runningTimer)
+                    <a href="{{ route('timesheet') }}" class="flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100" title="Timer running on {{ $runningTimer->project?->name }}. Click to open the tracker."
+                       x-data="{ started: {{ $runningTimer->started_at->getTimestamp() * 1000 }}, now: Date.now(), clock() { const s = Math.max(0, Math.floor((this.now - this.started) / 1000)); return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(n => String(n).padStart(2, '0')).join(':') } }" x-init="setInterval(() => now = Date.now(), 1000)">
+                        <span class="size-2 rounded-full bg-emerald-600"></span>
+                        <span class="hidden max-w-32 truncate sm:inline">{{ $runningTimer->project?->name }}</span>
+                        <span class="font-mono tabular-nums" x-text="clock()">{{ \App\Models\TimeEntry::clock($runningTimer->seconds()) }}</span>
+                    </a>
+                @endif
                 <span class="hidden text-xs text-stone-500 md:inline">{{ \Illuminate\Support\Carbon::now(crm_tz())->format('D, d M Y') }}</span>
                 <livewire:notifications.bell />
                 <livewire:account.menu />

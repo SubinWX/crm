@@ -12,7 +12,7 @@ class Center extends Component
 {
     use WithPagination;
 
-    public const CATEGORIES = ['client' => 'Clients', 'hosting' => 'Hosting', 'invoice' => 'Invoices', 'support' => 'Support', 'renewal' => 'Renewals', 'careers' => 'Careers'];
+    public const CATEGORIES = ['client' => 'Clients', 'hosting' => 'Hosting', 'invoice' => 'Invoices', 'support' => 'Support', 'renewal' => 'Renewals', 'careers' => 'Careers', 'team' => 'Team'];
 
     /** '' | client | hosting | invoice */
     #[Url(except: '')]

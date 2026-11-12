@@ -16,7 +16,7 @@
         @endforeach
     </div>
 
-    @forelse (collect(['support', 'careers', 'client', 'hosting', 'renewal', 'invoice', 'other'])->filter(fn ($k) => $groups->has($k)) as $key)
+    @forelse (collect(['support', 'careers', 'team', 'client', 'hosting', 'renewal', 'invoice', 'other'])->filter(fn ($k) => $groups->has($k)) as $key)
         <section class="card mb-5" wire:key="group-{{ $key }}">
             <div class="card-header"><h2 class="card-title">{{ \App\Livewire\Notifications\Center::CATEGORIES[$key] ?? 'Other' }}</h2><span class="text-xs text-stone-500">{{ $groups[$key]->count() }} on this page</span></div>
             @foreach ($groups[$key] as $n)

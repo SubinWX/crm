@@ -1,12 +1,19 @@
 <div>
-    <x-page-header title="Users" subtitle="Create accounts with a password or by email invitation. Deactivating a user keeps their history, including payments they received.">
-        <button type="button" class="btn-primary" wire:click="create"><x-icon name="plus" /> Add user</button>
-    </x-page-header>
+    @if ($staffScope)
+        <x-page-header title="Staff" subtitle="Add staff accounts and choose which parts of the CRM each one can use.">
+            <button type="button" class="btn-primary" wire:click="create"><x-icon name="plus" /> Add staff</button>
+        </x-page-header>
+    @else
+        <x-page-header title="Admins" subtitle="Super Admin and Admin accounts, and which areas each Admin can use. Staff accounts have their own page.">
+            <a href="{{ route('staff.index') }}" class="btn-secondary">Staff accounts ({{ $counts['staff'] }}) →</a>
+            <button type="button" class="btn-primary" wire:click="create"><x-icon name="plus" /> Add admin</button>
+        </x-page-header>
+    @endif
 
     {{-- Login links: Super Admins and staff have separate sign-in pages --}}
     <div class="card mb-5 divide-y divide-stone-200">
-        @foreach ([['Admin login link', route('login'), 'Super Admins and Sub Admins sign in here.', 'admin'], ['Staff login link', route('staff.login'), 'Staff sign in here.', 'staff']] as [$label, $url, $hint, $for])
-            <div class="flex flex-wrap items-center gap-3 p-4 {{ ($role === 'staff') === ($for === 'staff') ? '' : 'opacity-60' }}" x-data="{ copied: false }">
+        @foreach (array_filter([$staffScope ? null : ['Admin login link', route('login'), 'Super Admins and Admins sign in here.', 'admin'], $staffScope ? ['Staff login link', route('staff.login'), 'Staff sign in here.', 'staff'] : null]) as [$label, $url, $hint, $for])
+            <div class="flex flex-wrap items-center gap-3 p-4" x-data="{ copied: false }">
                 <p class="w-36 text-xs font-semibold tracking-wide text-stone-500 uppercase">{{ $label }}</p>
                 <a href="{{ $url }}" class="link break-all text-sm">{{ $url }}</a>
                 <button type="button" class="btn-secondary btn-sm" @click="navigator.clipboard.writeText(@js($url)); copied = true; setTimeout(() => copied = false, 2000)">
@@ -44,6 +51,7 @@
     @endif
 
     @php $requireTwoFactor = setting('require_two_factor') === '1'; @endphp
+    @unless ($staffScope)
     <div class="card mb-5 flex flex-wrap items-center justify-between gap-3 p-4">
         <div class="min-w-64 flex-1 text-sm">
             <p class="font-semibold text-stone-900">Two-step login for Super Admins <span class="{{ $requireTwoFactor ? 'badge-green' : 'badge-gray' }} ml-1">{{ $requireTwoFactor ? 'Required' : 'Optional' }}</span></p>
@@ -55,9 +63,10 @@
             <button type="button" class="btn-primary" wire:click="setRequireTwoFactor(true)" wire:confirm="Require two-step login for every Super Admin? Those who have not set it up will be asked to at their next page.">Require it</button>
         @endif
     </div>
+    @endunless
 
-    <div class="mb-5 flex gap-6 border-b border-stone-200" role="tablist">
-        @foreach (['super_admin' => 'Super Admins', 'sub_admin' => 'Sub Admins', 'staff' => 'Staff'] as $key => $label)
+    <div @class(['mb-5 flex gap-6 border-b border-stone-200', 'hidden' => $staffScope]) role="tablist">
+        @foreach ($roleTabs as $key => $label)
             <button type="button" role="tab" @class(['tab', 'tab-active' => $role === $key]) wire:click="$set('role', '{{ $key }}')">{{ $label }} <span class="text-stone-400">({{ $counts[$key] }})</span></button>
         @endforeach
     </div>
@@ -150,11 +159,15 @@
                         </div>
                     </x-field>
                 @endif
-                <x-field label="Role" name="form.role" required>
-                    <select class="input" wire:model.live="form.role">
-                        @foreach (\App\Models\User::ROLES as $key => $label) <option value="{{ $key }}">{{ $label }}</option> @endforeach
-                    </select>
-                </x-field>
+                @if ($staffScope)
+                    <x-field label="Role"><p class="py-2 text-sm text-stone-700">Staff <span class="text-stone-500">· signs in on the staff page</span></p></x-field>
+                @else
+                    <x-field label="Role" name="form.role" required>
+                        <select class="input" wire:model.live="form.role">
+                            @foreach ($roleTabs as $key => $label) <option value="{{ $key }}">{{ \App\Models\User::ROLES[$key] }}</option> @endforeach
+                        </select>
+                    </x-field>
+                @endif
                 <x-field label="Active status" name="form.is_active">
                     <label class="flex items-center gap-2 py-2 text-sm"><input type="checkbox" class="rounded border-stone-300" wire:model="form.is_active"> Account is active</label>
                 </x-field>
@@ -166,12 +179,12 @@
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <p class="label mb-0">Access: what this person can use</p>
                             <span class="flex gap-3 text-xs">
-                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode($grantable) }})">Tick all</button>
-                                <button type="button" class="link" wire:click="$set('form.permissions', [])">Clear all</button>
+                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode(array_values(array_unique(array_merge($mayGive, array_diff($form['permissions'], $mayGive))))) }})">Tick all</button>
+                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode(array_values(array_diff($form['permissions'], $mayGive))) }})">Clear all</button>
                             </span>
                         </div>
                         @if ($form['role'] === 'sub_admin')
-                            <p class="mt-1 rounded-md bg-stone-50 p-3 text-sm text-stone-600">Sub Admins always can add clients, see and edit only the clients they added, and add support portal users. You can also open the areas below for them. <strong class="text-stone-800">Those areas show every record in them, not only this person’s clients.</strong></p>
+                            <p class="mt-1 rounded-md bg-stone-50 p-3 text-sm text-stone-600">Admins always can add clients, see and edit only the clients they added, and add support portal users. You can also open the areas below for them. <strong class="text-stone-800">Those areas show every record in them, not only this person’s clients.</strong></p>
                         @endif
                         <div class="mt-2 grid gap-x-6 gap-y-3 rounded-md border border-stone-200 p-3 sm:grid-cols-2">
                             @foreach (\App\Models\User::PERMISSION_GROUPS as $group => $keys)
@@ -180,7 +193,11 @@
                                         <legend class="text-xs font-semibold tracking-wide text-stone-500 uppercase">{{ $group }}</legend>
                                         <div class="mt-1 space-y-1.5">
                                             @foreach ($shown as $key)
-                                                <label class="flex items-start gap-2 text-sm"><input type="checkbox" class="mt-0.5 rounded border-stone-300" value="{{ $key }}" wire:model="form.permissions"> <span>{{ \App\Models\User::STAFF_PERMISSIONS[$key] }}</span></label>
+                                                @php $locked = ! in_array($key, $mayGive, true); @endphp
+                                                <label @class(['flex items-start gap-2 text-sm', 'text-stone-400' => $locked]) @if ($locked) title="Only a Super Admin can change this, because this area has not been given to you." @endif>
+                                                    <input type="checkbox" class="mt-0.5 rounded border-stone-300 disabled:opacity-50" value="{{ $key }}" wire:model="form.permissions" @disabled($locked)>
+                                                    <span>{{ \App\Models\User::STAFF_PERMISSIONS[$key] }}@if ($locked) <span class="text-xs">(Super Admin only)</span>@endif</span>
+                                                </label>
                                             @endforeach
                                         </div>
                                     </fieldset>

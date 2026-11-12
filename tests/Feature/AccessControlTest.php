@@ -194,7 +194,7 @@ class AccessControlTest extends TestCase
     {
         Notification::fake();
 
-        Livewire::actingAs($this->admin)->test(UsersIndex::class)
+        Livewire::actingAs($this->admin)->test(UsersIndex::class, ['scope' => 'staff'])
             ->call('create')
             ->set('form.name', 'New Staff')
             ->set('form.email', 'new@agency.test')

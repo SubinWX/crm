@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\JobApplication;
 use App\Models\JobVacancy;
 use App\Models\Lead;
+use App\Models\LeaveRequest;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\Renewal;
@@ -34,6 +35,7 @@ class CalendarEvents
         'task' => ['Tasks & follow-ups', 'bg-stone-200 text-stone-800', 'bg-stone-500', 'Task'],
         'project' => ['Project deadlines', 'bg-teal-100 text-teal-800', 'bg-teal-500', 'Project'],
         'lead' => ['Lead next actions', 'bg-orange-100 text-orange-800', 'bg-orange-500', 'Lead action'],
+        'team' => ['Leave & holidays', 'bg-violet-100 text-violet-800', 'bg-violet-500', 'Team'],
         'careers' => ['Interviews & job closing dates', 'bg-rose-100 text-rose-800', 'bg-rose-500', 'Careers'],
     ];
 
@@ -53,6 +55,7 @@ class CalendarEvents
             'task' => Gate::forUser($user)->allows('tasks.view'),
             'project' => $team && $clients,
             'lead' => Gate::forUser($user)->allows('sales.manage'),
+            'team' => $team,
             'careers' => Gate::forUser($user)->allows('careers.manage'),
         ]));
     }
@@ -132,6 +135,21 @@ class CalendarEvents
         if ($has('lead')) {
             Lead::query()->open()->whereBetween('next_action_date', [$start, $end])->get()
                 ->each(fn (Lead $l) => $add('lead', $l->next_action_date, $l->next_action ?: 'Follow up', $l->name, route('leads.show', $l), $l->next_action_date->toDateString() < $today));
+        }
+
+        if ($has('team')) {
+            // Company holidays, and who is away on approved leave (one entry on each day of the leave).
+            foreach (WorkCalendar::holidays($start, $end) as $date => $name) {
+                $add('team', $date, $name, 'Company holiday', route('attendance'));
+            }
+            LeaveRequest::query()->with(['user', 'type'])->where('status', 'approved')->overlapping($start, $end)->get()
+                ->each(function (LeaveRequest $l) use ($add, $start, $end) {
+                    for ($day = $l->from_date->copy(); $day->lte($l->to_date); $day->addDay()) {
+                        if ($day->toDateString() >= $start && $day->toDateString() <= $end && WorkCalendar::workingDays($day->toDateString(), $day->toDateString()) > 0) {
+                            $add('team', $day->toDateString(), ($l->user?->name ?? 'Someone').' on leave', $l->day_part === 'full' ? 'Full day' : LeaveRequest::DAY_PARTS[$l->day_part], route('leave'));
+                        }
+                    }
+                });
         }
 
         if ($has('careers')) {

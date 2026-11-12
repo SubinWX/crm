@@ -6,12 +6,17 @@ use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\JobApplication;
 use App\Models\Lead;
+use App\Models\TimeEntry;
+use App\Models\User;
 use App\Support\ApplicationFilters;
+use App\Support\AttendanceSheet;
 use App\Support\ClientFilters;
 use App\Support\Gst;
 use App\Support\GstReport;
 use App\Support\LeadFilters;
+use App\Support\TimeFilters;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /** CSV exports of the filtered Clients and Leads lists. Routes carry the permission checks. */
 class ExportController extends Controller
@@ -98,6 +103,56 @@ class ExportController extends Controller
             }
             fclose($out);
         }, 'gst-'.($hsn ? 'hsn-summary' : 'invoice-register').'-'.$month.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Time entries as a spreadsheet: the Overview's date range and filters, or one week (?week=).
+     * Everyone can export their own time; people with "team.manage" can export anyone's or everyone's.
+     */
+    public function timesheet(Request $request)
+    {
+        $manager = $request->user()->can('team.manage');
+        $person = (string) $request->query('person');
+        $userId = $manager ? ($person === 'all' ? null : (ctype_digit($person) ? (int) $person : $request->user()->id)) : $request->user()->id;
+
+        $filters = $request->only(['from', 'to', 'task', 'client', 'project']);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->query('week'))) {
+            $start = Carbon::parse($request->query('week'))->startOfWeek(Carbon::MONDAY);
+            $filters = ['from' => $start->toDateString(), 'to' => $start->copy()->addDays(6)->toDateString()] + $filters;
+        }
+        $query = TimeFilters::apply(TimeEntry::query()->finished()->with(['user', 'project.client']), $filters, $userId)->orderBy('work_date')->orderBy('id');
+
+        activity('exported', 'Time entries exported to CSV');
+
+        return $this->csv('time-entries', ['Date', 'Person', 'Client', 'Project', 'Task', 'Start', 'End', 'Duration', 'Hours', 'Billable'], $query, fn (TimeEntry $e) => [
+            $e->work_date->format('Y-m-d'), $e->user?->name, $e->project?->client?->name, $e->project?->name, $e->description,
+            $e->started_at?->timezone(crm_tz())->format('H:i'), $e->ended_at?->timezone(crm_tz())->format('H:i'),
+            TimeEntry::clock($e->seconds()), number_format($e->minutes / 60, 2, '.', ''), $e->is_billable ? 'yes' : 'no',
+        ]);
+    }
+
+    /** The team's attendance sheet for one month: one row per person, one column per day, then totals. */
+    public function attendance(Request $request)
+    {
+        $month = (string) $request->query('month');
+        abort_unless(AttendanceSheet::validMonth($month), 404);
+        $users = User::active()->team()->orderBy('name')->get();
+        $sheet = new AttendanceSheet($month, $users);
+
+        activity('exported', "Attendance sheet for {$month} exported to CSV");
+
+        return response()->streamDownload(function () use ($sheet, $users) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Person', ...$sheet->days->map(fn ($d) => $d->format('d D'))->all(), 'Present', 'Absent', 'Leave', 'Not marked', 'Working days']);
+            foreach ($users as $user) {
+                $t = $sheet->totals[$user->id];
+                fputcsv($out, [$user->name, ...$sheet->days->map(fn ($d) => $sheet->cells[$user->id][$d->toDateString()]['code'])->all(), $t['present'], $t['absent'], $t['leave'], $t['unmarked'], $t['working']]);
+            }
+            fputcsv($out, []);
+            fputcsv($out, ['P = present, HD = half day, WFH = work from home, A = absent, L = leave, HL = half-day leave, H = holiday, W = weekly off, ? = not marked']);
+            fclose($out);
+        }, 'attendance-'.$month.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     protected function csv(string $name, array $headings, $query, callable $row)

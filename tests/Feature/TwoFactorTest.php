@@ -122,7 +122,7 @@ class TwoFactorTest extends TestCase
         $this->assertAuthenticatedAs($staff, 'web');
         $this->post('/logout');
         $this->flushSession();
-        Livewire::actingAs($other)->test(UsersIndex::class)->set('role', 'staff')->assertSee('2-step')->call('resetTwoFactor', $staff->id);
+        Livewire::actingAs($other)->test(UsersIndex::class, ['scope' => 'staff'])->assertSee('2-step')->call('resetTwoFactor', $staff->id);
         $this->assertFalse($staff->fresh()->hasTwoFactor());
         Livewire::actingAs($staff)->test(UsersIndex::class)->assertForbidden();
 

@@ -2,7 +2,7 @@
 <x-layouts.guest :title="$staff ? 'Staff sign in' : 'Admin sign in'">
     <p class="text-xs font-semibold tracking-wider text-brand-700 uppercase">{{ $staff ? 'Staff' : 'Admin' }}</p>
     <h1 class="mt-1 text-2xl font-semibold text-stone-900">{{ $staff ? 'Staff sign in' : 'Admin sign in' }}</h1>
-    <p class="mt-1 text-sm text-stone-500">{{ $staff ? 'For Staff accounts.' : 'For Super Admin and Sub Admin accounts.' }}</p>
+    <p class="mt-1 text-sm text-stone-500">{{ $staff ? 'For Staff accounts.' : 'For Super Admin and Admin accounts.' }}</p>
 
     @if (session('status'))
         <div class="mt-4 rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">{{ session('status') }}</div>
@@ -29,7 +29,7 @@
         <button class="btn-primary w-full" type="submit">Sign in</button>
     </form>
     <p class="mt-6 text-xs text-stone-500">
-        @if ($staff) Super Admin or Sub Admin? <a class="link" href="{{ route('login') }}">Use the admin sign-in page</a>.
+        @if ($staff) Super Admin or Admin? <a class="link" href="{{ route('login') }}">Use the admin sign-in page</a>.
         @else Staff? <a class="link" href="{{ route('staff.login') }}">Use the staff sign-in page</a>. @endif
         No account? Ask a Super Admin to add you.
     </p>

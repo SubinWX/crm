@@ -6,6 +6,7 @@ use App\Models\Concerns\LogsActivity;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,7 +23,8 @@ class User extends Authenticatable
     /** Minimal access: may add clients and see only the clients they added. */
     public const ROLE_SUB_ADMIN = 'sub_admin';
 
-    public const ROLES = [self::ROLE_SUPER_ADMIN => 'Super Admin', self::ROLE_SUB_ADMIN => 'Sub Admin', self::ROLE_STAFF => 'Staff'];
+    /** The middle role is shown to people as "Admin"; in the code it is still called sub_admin. */
+    public const ROLES = [self::ROLE_SUPER_ADMIN => 'Super Admin', self::ROLE_SUB_ADMIN => 'Admin', self::ROLE_STAFF => 'Staff'];
 
     /**
      * Access a Super Admin can switch on for each person, set in the user form.
@@ -37,6 +39,7 @@ class User extends Authenticatable
         'sales.manage' => 'Manage leads, follow-ups, quotes and proposals',
         'careers.manage' => 'Manage job vacancies and applications',
         'finance.manage' => 'Invoices, payments, expenses and GST reports',
+        'team.manage' => 'Approve leave, manage attendance and holidays, see everyone’s timesheets',
     ];
 
     /** The same options grouped the way the menu is, for the user form. */
@@ -46,6 +49,7 @@ class User extends Authenticatable
         'Support' => ['support.manage'],
         'Careers' => ['careers.manage'],
         'Finance' => ['finance.manage'],
+        'Team' => ['team.manage'],
     ];
 
     /**
@@ -53,6 +57,29 @@ class User extends Authenticatable
      * record in them, not only the Sub Admin's clients, so they are off unless switched on.
      */
     public const SUB_ADMIN_PERMISSIONS = ['sales.manage', 'support.manage', 'careers.manage', 'finance.manage'];
+
+    /**
+     * Areas an Admin can only pass on to staff when a Super Admin has given that area to the Admin.
+     * The everyday staff areas (clients, tasks, posters) are always theirs to give.
+     */
+    public const GUARDED_PERMISSIONS = ['sales.manage', 'support.manage', 'careers.manage', 'finance.manage', 'team.manage'];
+
+    /**
+     * The access options $this person may tick for someone with the given role.
+     * Super Admins may tick anything that exists for the role. Admins manage Staff only, and cannot
+     * hand out a guarded area they have not been given themselves.
+     */
+    public function assignablePermissions(string $role): array
+    {
+        if ($this->isSuperAdmin()) {
+            return self::grantable($role);
+        }
+        if (! $this->isSubAdmin() || $role !== self::ROLE_STAFF) {
+            return [];
+        }
+
+        return array_values(array_filter(self::grantable($role), fn ($permission) => ! in_array($permission, self::GUARDED_PERMISSIONS, true) || $this->hasPermission($permission)));
+    }
 
     /** The options that can be ticked for a role. Super Admins have everything, so nothing is ticked for them. */
     public static function grantable(string $role): array
@@ -151,6 +178,28 @@ class User extends Authenticatable
     public function clearTwoFactor(): void
     {
         $this->forceFill(['two_factor_secret' => null, 'two_factor_recovery_codes' => null, 'two_factor_confirmed_at' => null])->save();
+    }
+
+    /** Projects this person is on the team of. */
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class);
+    }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
+    public function leaveRequests(): HasMany
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    /** Super Admins and Staff are the working team for timesheets, leave and attendance. Sub Admins are outside it. */
+    public function scopeTeam(Builder $query): Builder
+    {
+        return $query->where('role', '!=', self::ROLE_SUB_ADMIN);
     }
 
     public function equipment(): HasMany

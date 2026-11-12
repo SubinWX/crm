@@ -24,6 +24,7 @@ class Lookup extends Model
         'expense_link' => 'Expense “Linked to” options',
         'equipment_type' => 'Equipment types',
         'job_department' => 'Job departments (Careers)',
+        'leave_type' => 'Leave types',
     ];
 
     protected static function booted(): void
@@ -70,6 +71,7 @@ class Lookup extends Model
             'expense_link' => Expense::where('link_id', $this->id)->count(),
             'equipment_type' => Equipment::where('type_id', $this->id)->count(),
             'job_department' => JobVacancy::where('department', $this->name)->count(),
+            'leave_type' => LeaveRequest::where('leave_type_id', $this->id)->count(),
             default => 0,
         };
     }

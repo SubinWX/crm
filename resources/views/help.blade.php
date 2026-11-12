@@ -19,6 +19,7 @@
         ['equipment', 'Equipment', true],
         ['notifications', 'Notifications and reminders', $team],
         ['careers', 'Careers and job applications', $can('careers.manage')],
+        ['team', 'Timesheets, leave and attendance', $can('workspace')],
         ['email-tools', 'Email signatures and templates', true],
         ['security', 'Two-step login', true],
         ['admin', 'Users, roles and settings', $can('admin')],
@@ -43,7 +44,7 @@
                 <p>{{ app_name() }} keeps clients, renewals, sales, invoices, support and day-to-day work in one place. The menu on the left is grouped into main menus; click one to open its sub-menu. Your name at the top right opens <strong>Change Password</strong>, <strong>Change Picture</strong> and <strong>Logout</strong>. The bell next to it shows notifications.</p>
                 <h3>Where to sign in</h3>
                 <ul>
-                    <li><strong>Super Admins and Sub Admins:</strong> <a class="link" href="{{ route('login') }}">{{ route('login') }}</a></li>
+                    <li><strong>Super Admins and Admins:</strong> <a class="link" href="{{ route('login') }}">{{ route('login') }}</a></li>
                     <li><strong>Staff:</strong> <a class="link" href="{{ route('staff.login') }}">{{ route('staff.login') }}</a></li>
                     <li><strong>Clients (support portal):</strong> <a class="link" href="{{ route('portal.home') }}">{{ route('portal.home') }}</a></li>
                 </ul>
@@ -51,7 +52,7 @@
                 <ul>
                     <li><strong>Super Admin</strong> — everything, including finance, users and settings.</li>
                     <li><strong>Staff</strong> — the areas a Super Admin has ticked for them (clients, tasks, posters, sales, support, careers, finance).</li>
-                    <li><strong>Sub Admin</strong> — adds clients and sees and edits only the clients they added, plus any extra area ticked for them (sales, support, careers, finance).</li>
+                    <li><strong>Admin</strong> — adds clients and sees and edits only the clients they added, plus any extra area ticked for them (sales, support, careers, finance).</li>
                 </ul>
                 <h3>Things that work the same everywhere</h3>
                 <ul>
@@ -241,6 +242,38 @@
                         <li>After the month ends, open <strong>Finance → GST Summary</strong>, pick the month and download the <strong>Invoice register</strong> and <strong>HSN summary</strong> for your accountant.</li>
                     </ol>
                     <p>Only invoices marked as sent are counted. Drafts and voided invoices are left out.</p>
+                </section>
+            @endif
+
+            @if ($can('workspace'))
+                <section id="team" class="card p-5 text-sm leading-relaxed text-stone-700">
+                    <h2>Timesheets, leave and attendance</h2>
+                    <h3>Logging your time</h3>
+                    <ol>
+                        <li>Open <strong>Team → Timesheet</strong>. On the <strong>Tracker</strong> tab, type what you are working on, choose the project and press <strong>Start</strong>.</li>
+                        <li>Press <strong>Stop</strong> when you finish. The time is saved to that project with its start and end. While a timer runs, a green clock shows at the top of every page.</li>
+                        <li>Forgot to start it? Switch to <strong>Manual</strong> and add the hours in one line (1.5 means 1 hour 30 minutes).</li>
+                        <li>The list below shows each day with its total. The ▶ button starts the timer again for the same work. You can change entries for the last 14 days.</li>
+                    </ol>
+                    <p>The <strong>Overview</strong> tab shows the week by day and by project. <strong>Work → Projects &amp; Services</strong> shows the time tracked by each person, and who is working right now.</p>
+                    <p>Each project page (<strong>Work → Projects &amp; Services</strong>, then open a project) shows the hours spent against the estimate, and who spent them.</p>
+                    <h3>Applying for leave</h3>
+                    <ol>
+                        <li>Open <strong>Team → Leave</strong> and press <strong>Apply for leave</strong>.</li>
+                        <li>Pick the type, the first and last day (or half a day), and give a reason. Weekly offs and company holidays in between are not counted.</li>
+                        <li>You are told by notification and email when it is approved or rejected. You can cancel a request that is still waiting, or approved leave that has not started.</li>
+                    </ol>
+                    <h3>Attendance</h3>
+                    <p>Open <strong>Team → Attendance</strong> and press <strong>Check in</strong> when you start and <strong>Check out</strong> when you finish. The page shows your month: days present, on leave, absent, and any working day that was not marked.</p>
+                    @if ($can('team.manage'))
+                        <h3>For managers</h3>
+                        <ul>
+                            <li><strong>Leave → To approve</strong> lists requests waiting for you. Approve, or reject with a short reason. <strong>Everyone’s leave</strong> shows the whole team for the year.</li>
+                            <li><strong>Attendance → Team sheet</strong> is the monthly grid. Click a day to mark someone present, absent, half day or working from home. Click a date at the top to mark everyone unmarked on that day as present. Export it as a spreadsheet.</li>
+                            <li><strong>Attendance → Holidays &amp; settings</strong> holds the company holidays, the weekly off days and the paid leave days per year.</li>
+                            <li><strong>Timesheet</strong> lets you view one person or everyone, correct any entry and export the week.</li>
+                        </ul>
+                    @endif
                 </section>
             @endif
 

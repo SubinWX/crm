@@ -30,7 +30,7 @@ class CalendarTest extends TestCase
         $sub = User::factory()->create(['role' => User::ROLE_SUB_ADMIN, 'permissions' => null, 'name' => 'Sam Sub']);
 
         // Date of birth is set on the Users screen for any role.
-        Livewire::actingAs($admin)->test(UsersIndex::class)->call('edit', $staff->id)->set('form.date_of_birth', '1994-11-20')->call('save')->assertHasNoErrors();
+        Livewire::actingAs($admin)->test(UsersIndex::class, ['scope' => 'staff'])->call('edit', $staff->id)->set('form.date_of_birth', '1994-11-20')->call('save')->assertHasNoErrors();
         Livewire::actingAs($admin)->test(UsersIndex::class)->call('edit', $sub->id)->set('form.date_of_birth', '2000-02-29')->call('save')->assertHasNoErrors();
         Livewire::actingAs($admin)->test(UsersIndex::class)->call('edit', $admin->id)->set('form.date_of_birth', '2030-01-01')->call('save')->assertHasErrors('form.date_of_birth');
         $this->assertSame('1994-11-20', $staff->fresh()->date_of_birth->toDateString());

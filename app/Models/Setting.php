@@ -23,6 +23,9 @@ class Setting extends Model
         // GST state code of the company. Setting it switches invoices to GST mode (CGST/SGST/IGST).
         'company_state' => '',
         'invoice_default_hsn' => '',
+        // Team: days of the week that are always off (0 = Sunday … 6 = Saturday) and paid leave days per person per year.
+        'weekly_off_days' => '0',
+        'leave_days_per_year' => '12',
         'currency' => 'INR',
         'timezone' => 'Asia/Kolkata',
         'invoice_prefix' => 'INV-',

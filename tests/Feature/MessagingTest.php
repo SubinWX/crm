@@ -45,7 +45,7 @@ class MessagingTest extends TestCase
         Invoice::create(['number' => 'INV-A-1', 'client_id' => $client->id, 'invoice_date' => '2026-11-01', 'total' => 100, 'status' => 'sent']);
 
         // Staff: finance is now something a Super Admin can switch on.
-        $form = Livewire::actingAs($this->admin)->test(UsersIndex::class)->call('create')
+        $form = Livewire::actingAs($this->admin)->test(UsersIndex::class, ['scope' => 'staff'])->call('create')
             ->set('form.name', 'Fin Staff')->set('form.email', 'fin@example.com')->set('form.password', 'secret-pass-1')->set('form.role', 'staff')
             ->assertSee('Invoices, payments, expenses and GST reports')->set('form.permissions', ['finance.manage', 'tasks.manage', 'made.up'])
             ->call('save')->assertHasErrors('form.permissions.2');
@@ -72,7 +72,7 @@ class MessagingTest extends TestCase
         $this->flushSession()->actingAs($sub)->get(route('clients.show', $client))->assertForbidden(); // still only their own clients
 
         // Promoting to Super Admin clears the list (they have everything); removing a tick takes access away at once.
-        Livewire::actingAs($this->admin)->test(UsersIndex::class)->call('edit', $staff->id)->assertSet('form.permissions', ['tasks.manage', 'finance.manage'])
+        Livewire::actingAs($this->admin)->test(UsersIndex::class, ['scope' => 'staff'])->call('edit', $staff->id)->assertSet('form.permissions', ['tasks.manage', 'finance.manage'])
             ->set('form.permissions', ['tasks.manage'])->call('save')->assertHasNoErrors();
         $this->flushSession()->actingAs($staff->fresh())->get(route('invoices.index'))->assertForbidden();
         Livewire::actingAs($this->admin)->test(UsersIndex::class)->call('edit', $sub->id)->set('form.role', 'super_admin')->call('save')->assertHasNoErrors();
