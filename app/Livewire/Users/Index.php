@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Users;
 
+use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\UserInvited;
 use Illuminate\Support\Facades\Gate;
@@ -97,7 +98,7 @@ class Index extends Component
             'form.password' => ['nullable', 'string', Password::min(8), 'max:200'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],
             'form.permissions' => ['array'],
-            'form.permissions.*' => [Rule::in(array_keys(User::STAFF_PERMISSIONS))],
+            'form.permissions.*' => ['string', Rule::in(array_keys(User::STAFF_PERMISSIONS))],
         ], [], ['form.name' => 'name', 'form.email' => 'email', 'form.phone' => 'primary phone', 'form.alt_phone' => 'alternate phone', 'form.date_of_birth' => 'date of birth', 'form.password' => 'password']);
 
         $password = (string) ($this->form['password'] ?? '');
@@ -115,7 +116,9 @@ class Index extends Component
             'date_of_birth' => $this->form['date_of_birth'] ?: null,
             'role' => $this->form['role'],
             'is_active' => (bool) $this->form['is_active'],
-            'permissions' => $this->form['role'] === User::ROLE_STAFF ? array_values($this->form['permissions']) : null,
+            // Only the options that exist for the chosen role are kept; Super Admins need none.
+            'permissions' => $this->form['role'] === User::ROLE_SUPER_ADMIN ? null
+                : array_values(array_intersect(User::grantable($this->form['role']), $this->form['permissions'])),
         ];
 
         if ($this->editingId) {
@@ -168,6 +171,29 @@ class Index extends Component
             'name' => $user->name, 'email' => $user->email, 'role' => $user->role_label,
             'login_url' => $user->loginUrl(), 'invite_url' => route('invitation.show', $this->sendInvitation($user)),
         ];
+    }
+
+    /** For someone who lost their phone: clears two-step login so they can sign in with the password and set it up again. */
+    public function resetTwoFactor(int $id): void
+    {
+        $user = User::findOrFail($id);
+        abort_if($user->id === auth()->id(), 422);
+        $user->clearTwoFactor();
+        activity('two_factor', "Two-step login reset for {$user->email} by a Super Admin", $user);
+        $this->dispatch('toast', message: "Two-step login reset for {$user->name}.");
+    }
+
+    /** Applies to Super Admins only. Whoever switches it on must already have it, so nobody is locked out by surprise. */
+    public function setRequireTwoFactor(bool $on): void
+    {
+        if ($on && ! auth()->user()->hasTwoFactor()) {
+            $this->dispatch('toast', message: 'Set up two-step login on your own account first (top-right menu → Two-step login).', type: 'error');
+
+            return;
+        }
+        Setting::put('require_two_factor', $on ? '1' : '0');
+        activity('updated', 'Two-step login for Super Admins '.($on ? 'made required' : 'made optional'));
+        $this->dispatch('toast', message: $on ? 'Two-step login is now required for Super Admins.' : 'Two-step login is now optional.');
     }
 
     public function toggleActive(int $id): void

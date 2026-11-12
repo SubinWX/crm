@@ -91,6 +91,40 @@ demo users (`admin@example.test`, `partner@example.test`, `staff@example.test`, 
 
 ---
 
+## Email, WhatsApp, two-step login and GST
+
+**Email server.** *Settings → Email & WhatsApp* lets a Super Admin connect an SMTP mailbox (host, port,
+security, username, password, from address) without editing `.env`. The password is stored encrypted.
+When switched on it replaces the `.env` mail settings, and the queue worker picks the change up before its
+next job. "Send test" delivers immediately and shows any error from the server.
+
+**WhatsApp reminders to clients.** Same page. Two kinds of service are supported:
+
+- *WhatsApp Business Cloud API (Meta)*: enter the Phone number ID and a permanent access token. Meta only
+  delivers business-initiated messages that use an approved template, so create one template per reminder
+  in WhatsApp Manager with four body variables in this order: client name, item, date, amount. Enter the
+  template names on the page.
+- *Another provider*: enter its "send message" HTTPS address, the header that carries the token, and the
+  JSON body with `{phone}` and `{message}` placeholders.
+
+Reminders go to the client's primary phone: hosting 7 days before the payment date, renewals at the
+configured stages, and unpaid invoices on the configured days around the due date (default `-3,0,7`).
+Each is sent once per reminder date by the hourly `crm:send-reminders` run and recorded in `message_logs`
+(shown at the bottom of the page). An open invoice also has a "WhatsApp reminder" button.
+
+**Two-step login.** Any team member can switch it on from the top-right menu → *Two-step login*: scan the
+QR code with an authenticator app, confirm with a code, and save the eight recovery codes. Sign-in then asks
+for the 6-digit code after the password. On the Users page a Super Admin can make it required for all Super
+Admins, and reset it for someone who lost their phone. If the only Super Admin is locked out, clear it from
+the server: `php artisan tinker --execute='App\\Models\\User::where("email","you@example.com")->first()->clearTwoFactor();'`
+
+**GST.** Choose the company's state and enter its GSTIN in *Settings → General*. From then on invoices carry
+a place of supply, HSN/SAC codes per line and the tax split: CGST + SGST when the client is in the same
+state, IGST otherwise. The PDF becomes a "Tax Invoice" with both GSTINs and the amount in words. Set each
+client's GSTIN and state on the client form. *Finance → GST Summary* shows one month's issued invoices with
+totals by client type (B2B/B2C), by rate and by HSN/SAC, and downloads the invoice register and HSN summary
+as CSV. It covers GST charged on sales only; input credit on purchases is not tracked.
+
 ## Email configuration
 
 Out of the box `MAIL_MAILER=log`, so emails are written to `storage/logs/laravel.log`.
@@ -172,12 +206,16 @@ php artisan crm:send-reminders --date=2027-01-03
 | Clients, hosting, client files | Yes | With `clients.view` / `clients.manage` | Add clients; view and edit only the clients they added (no archiving) |
 | Tasks, posters, Paid Server Clients | Yes | Yes (`tasks.manage` / `posters.manage` to change) | No |
 | Equipment | Manage everyone's | Own items, read-only | Own items, read-only |
-| Invoices, payments, expenses, receipts, invoice PDFs | Yes | No | No |
-| Support tickets | Yes | With `support.manage` | No |
+| Invoices, payments, expenses, GST summary | Yes | With `finance.manage` | With `finance.manage` |
+| Leads and quotes | Yes | With `sales.manage` | With `sales.manage` |
+| Careers | Yes | With `careers.manage` | With `careers.manage` |
+| Support tickets | Yes | With `support.manage` | With `support.manage` |
 | Support portal users | Manage all | No | Add, and manage the ones they added |
 | Users, settings, activity log | Yes | No | No |
 
-Staff permissions are ticked per user on the Users screen. Deactivating a user signs them out
+Access is ticked per person in the user form (Users → Add/Edit → *Access*). Staff can be given any of the
+options; Sub Admins always keep "own clients only" and can additionally be given Sales, Support, Careers
+or Finance, which show every record in those areas. Super Admins always have everything. Deactivating a user signs them out
 and blocks sign-in but never deletes them, so payments they received, tasks and log entries
 keep their name. The last active Super Admin cannot be deactivated or demoted.
 
@@ -301,17 +339,77 @@ ID* (type: Web application), and add this **Authorised redirect URI**:
 
 Ticket emails and notifications are queued, so the queue worker must be running.
 
+## Careers (job vacancies and applications)
+
+- **Public pages** (no sign-in): `/careers` lists open vacancies, `/careers/{job}` shows one vacancy with its application form, and `/careers/general-application` takes a resume when no listed role fits.
+- **Team side:** the **Careers** menu has three pages. *Overview* (`/recruitment`) shows the last 3 days of applications and a chart of applications received (7 days, 30 days or 12 months, plus a split by vacancy). *Vacancies* adds, edits, publishes and closes jobs. *All Applications* lists everything received, with filters (vacancy, status, date applied), sorting, status pipeline, rating, private notes, interview time, resume download and CSV export.
+- **Page design:** see *Public pages* below.
+- **Who can use it:** Super Admins, and Staff given the "Manage job vacancies and applications" permission.
+- **Alerts:** a new application notifies those people (notification centre and email) and sends the applicant a confirmation email. Interviews and vacancy closing dates appear on the Calendar.
+- **Resumes** are stored privately in `storage/app/private/resumes` (PDF or Word, up to 5 MB) and are only downloadable by signed-in people with the permission.
+- **Spam protection:** a hidden field for bots, a limit of 5 applications per hour from one connection, and one application per email address per vacancy every 30 days.
+
+## Public pages (careers and support portal)
+
+The two public areas share one header and footer and each have their own banner.
+
+- **Administration → Public Pages** (`/settings/public-pages`, Super Admins): logo and logo link, the extra
+  link and button at the top right (text, address, style, shape, colour), footer copyright, Terms and
+  Privacy links, and social media links. Stored as `site_*` settings.
+- **Careers → Page Settings** and **Support → Page Settings** (people with `careers.manage` /
+  `support.manage`): that page's banner (image, heading, description, small line beside the logo,
+  height, alignment, overlay darkness) and the call-to-action band above the footer (on/off, heading,
+  text, button text and address, colour). Stored as `careers_*` / `support_*` settings.
+- Images are stored in `storage/app/private/public-pages` and served from `/site/logo` and
+  `/site/banner/{careers|support}`.
+
 ## Branding, menu and help
 
 - **Settings → Branding** (Super Admins): the app name, a brand colour and a sidebar colour (or one
   of the quick themes), the logo and the favicon. The whole app, both sign-in pages, the support
   portal and the PDFs follow them. Colours too light to read white text against are refused, and
   red stays reserved for overdue and urgent items.
-- **Sidebar**: main menus (Clients & Work, Sales, Support, Finance, Administration) open to show
+- **Sidebar**: main menus (Clients, Work, Sales, Support, Careers, Finance, Administration) open to show
   their sub-menus. The menu holding the current page is always open; the rest remember their state
   in the browser.
 - **Help & Tutorial** (bottom of the sidebar, `/help`): a how-to guide for the team that shows
   only the sections the signed-in person can use.
+
+## Email Tools (signatures and templates)
+
+Open to every team member, under **Email Tools** in the menu.
+
+- **Email Signatures** (`/email-tools/signature`): four layouts (classic, modern, compact, and showcase with a large photo, highlight line and banner image) with name,
+  designation, company, phones, email, website, address, headshot, logo, colours, font, social links and
+  small print. Buttons copy the finished signature, copy its HTML, or download it. Each person keeps a
+  named list of saved signatures (`email_signatures`); Super Admins can also open their team's.
+- **Email Templates** (`/email-tools/templates`): a full HTML email with a header (clean, colour band,
+  or hero), an optional banner image (plain `<img>`, under the header, after the message or above the
+  footer, optionally a link), heading, formatted message, button, sign-off and a footer with company
+  name, address, phone, email, social links and small print. Templates are saved by name and shared (`email_templates`).
+- **Saved Signatures** (`/email-tools/saved-signatures`) and **Saved Email Templates**
+  (`/email-tools/saved-templates`) list what has been saved, with search, preview, copy, duplicate and
+  delete. The builders open one with `?open={id}`.
+- The HTML comes from `App\Support\EmailBuilder`: tables and inline styles only, no scripts, web fonts
+  or SVG, with every value escaped. Templates are 600px wide and go full width on phones.
+- Uploaded headshots are cut square and served from `/e/{random-name}.jpg` without sign-in, because the
+  recipient's mail program has to download them. They only display for recipients once the CRM is on a
+  public address; until then paste an image address that is already online.
+
+## PDF design (header, footer, logo, border)
+
+Every PDF (invoices, quotes and proposals, and the invoice / payment / expense reports) is drawn on one
+shared frame: a header and footer repeated on each page, an optional page border, bordered panels and
+tables. A Super Admin sets it in **Administration → PDF Settings** (`/settings/pdf`):
+
+- **Logo** for PDFs (falls back to the app logo), scaled to fit whatever its shape.
+- **Header**: layout (classic, solid colour band, or centred), company name, tagline, and up to four
+  address/contact lines (default: the company details from Settings → General).
+- **Footer**: up to two lines of text (default: the invoice footer note), a contact line, page numbers.
+- **Style**: page border on/off, grid or lines tables, accent colour (default: the brand colour).
+
+"View sample PDF" opens a made-up invoice with the saved settings. The shared pieces are
+`resources/views/pdf/_styles.blade.php` and `_frame.blade.php`; settings are stored as `pdf_*`.
 
 ## PDF reports, logos and headshots
 

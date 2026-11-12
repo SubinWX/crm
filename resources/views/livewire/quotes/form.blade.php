@@ -76,7 +76,7 @@
         </section>
 
         <section class="card p-4">
-            <x-field label="Internal notes (not printed)" name="form.notes"><textarea class="input" rows="2" wire:model="form.notes"></textarea></x-field>
+            <x-field label="Internal notes (not printed)" name="form.notes"><x-editor model="form.notes" :value="$form['notes']" min-height="4rem" label="Internal notes" /></x-field>
         </section>
 
         <div class="flex justify-end gap-2">

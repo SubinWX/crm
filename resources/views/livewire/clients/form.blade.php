@@ -72,7 +72,7 @@
                         @endforeach
                     </div>
                 </x-field>
-                <x-field label="Notes" name="form.notes" class="md:col-span-2 xl:col-span-4"><textarea class="input" rows="3" wire:model="form.notes"></textarea></x-field>
+                <x-field label="Notes" name="form.notes" class="md:col-span-2 xl:col-span-4"><x-editor model="form.notes" :value="$form['notes']" min-height="5rem" label="Notes" /></x-field>
             </div>
         </section>
 
@@ -98,7 +98,13 @@
             <section class="card">
                 <div class="card-header"><h2 class="card-title">Tax</h2></div>
                 <div class="grid gap-4 p-4 md:grid-cols-2">
-                    <x-field label="Tax ID / GSTIN" name="form.tax_id"><input class="input" type="text" wire:model="form.tax_id"></x-field>
+                    <x-field label="GSTIN / Tax ID" name="form.tax_id" hint="Clients with a GSTIN are reported as B2B in the GST summary."><input class="input uppercase" type="text" wire:model="form.tax_id" maxlength="40"></x-field>
+                    <x-field label="State (for GST)" name="form.state_code" hint="Decides CGST + SGST or IGST on invoices. Empty = taken from the GSTIN.">
+                        <select class="input" wire:model="form.state_code">
+                            <option value="">From GSTIN / not set</option>
+                            @foreach (\App\Support\Gst::STATES as $code => $name) <option value="{{ $code }}">{{ $code === \App\Support\Gst::FOREIGN ? $name : $code.' · '.$name }}</option> @endforeach
+                        </select>
+                    </x-field>
                     <p class="self-end pb-2 text-xs text-stone-500">Billing, approval and day-to-day contacts are kept on the client's <strong>Contacts</strong> tab{{ $client ? '' : ' after you save' }}.</p>
                 </div>
             </section>

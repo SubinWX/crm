@@ -31,6 +31,18 @@ class Expense extends Model
         return $this->belongsTo(Client::class);
     }
 
+    /** What a non-client expense is for (Office, Self, Other…). */
+    public function link(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'link_id');
+    }
+
+    /** The client, the chosen "Linked to" option, or general overhead when neither is set. */
+    public function linkedToLabel(): string
+    {
+        return $this->client?->name ?? $this->link?->name ?? 'General overhead';
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

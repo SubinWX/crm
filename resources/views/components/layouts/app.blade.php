@@ -14,11 +14,14 @@
         $user = auth()->user();
         // Main menus and their sub-items: [route, label, icon, visible, active pattern].
         $nav = [
-            ['Clients & Work', 'users', [
-                ['clients.index', 'Clients', 'users', $user->can('clients.view'), 'clients.*'],
-                ['tasks.index', 'Tasks & Follow-ups', 'check', $user->can('tasks.view'), 'tasks.*'],
-                ['projects.index', 'Projects & Services', 'document', $user->can('workspace') && $user->can('clients.view'), 'projects.*'],
+            ['Clients', 'users', [
+                ['clients.index', 'All Clients', 'users', $user->can('clients.view'), ['clients.index', 'clients.show', 'clients.edit']],
+                ['clients.create', 'Add Client', 'plus', $user->can('clients.create'), 'clients.create'],
                 ['renewals.index', 'Hosting & Renewals', 'server', $user->can('workspace') && $user->can('clients.view'), 'renewals.*'],
+            ]],
+            ['Work', 'check', [
+                ['projects.index', 'Projects & Services', 'document', $user->can('workspace') && $user->can('clients.view'), 'projects.*'],
+                ['tasks.index', 'Tasks & Follow-ups', 'check', $user->can('tasks.view'), 'tasks.*'],
                 ['posters.index', 'Social Media Posters', 'photo', $user->can('posters.view'), 'posters.*'],
                 ['equipment.index', $user->isSuperAdmin() ? 'Equipment' : 'My Equipment', 'desktop', true, 'equipment.*'],
             ]],
@@ -29,18 +32,36 @@
             ['Support', 'bell', [
                 ['support.tickets.index', 'Support Tickets', 'bell', $user->can('support.manage'), 'support.tickets.*'],
                 ['support.portal-users', 'Portal Users', 'users', $user->can('portal-users.manage'), 'support.portal-users'],
+                ['support.settings', 'Page Settings', 'cog', $user->can('support.manage'), 'support.settings'],
+            ]],
+            ['Careers', 'users', [
+                ['careers.manage', 'Overview', 'home', $user->can('careers.manage'), 'careers.manage'],
+                ['careers.applications', 'All Applications', 'document', $user->can('careers.manage'), 'careers.applications'],
+                ['careers.vacancies', 'Vacancies', 'users', $user->can('careers.manage'), 'careers.vacancies'],
+                ['careers.settings', 'Page Settings', 'cog', $user->can('careers.manage'), 'careers.settings'],
+            ]],
+            ['Email Tools', 'document', [
+                ['email-tools.signature', 'Email Signatures', 'document', true, 'email-tools.signature'],
+                ['email-tools.saved-signatures', 'Saved Signatures', 'document', true, 'email-tools.saved-signatures'],
+                ['email-tools.templates', 'Email Templates', 'document', true, 'email-tools.templates'],
+                ['email-tools.saved-templates', 'Saved Email Templates', 'document', true, 'email-tools.saved-templates'],
             ]],
             ['Finance', 'cash', [
                 ['invoices.index', 'Invoices', 'document', $user->can('finance'), 'invoices.*'],
                 ['payments.index', 'Payments', 'cash', $user->can('finance'), 'payments.*'],
                 ['expenses.index', 'Expenses', 'receipt', $user->can('finance'), 'expenses.*'],
+                ['gst.summary', 'GST Summary', 'document', $user->can('finance'), 'gst.*'],
             ]],
             ['Administration', 'shield', [
                 ['users.index', 'Users', 'shield', $user->can('admin'), 'users.*'],
                 ['activity.index', 'Activity Log', 'clock', $user->can('admin'), 'activity.*'],
-                ['settings.index', 'Settings', 'cog', $user->can('admin'), ['settings.*', 'quote-templates.*']],
+                ['settings.index', 'Settings', 'cog', $user->can('admin'), ['settings.index', 'quote-templates.*']],
+                ['settings.messaging', 'Email & WhatsApp', 'bell', $user->can('admin'), 'settings.messaging'],
+                ['settings.public-pages', 'Public Pages', 'document', $user->can('admin'), 'settings.public-pages'],
+                ['settings.pdf', 'PDF Settings', 'document', $user->can('admin'), 'settings.pdf*'],
             ]],
         ];
+        $newApplications = $user->can('careers.manage') ? \App\Models\JobApplication::where('status', 'new')->count() : 0;
         $openTickets = $user->can('support.manage') ? \App\Models\SupportTicket::where('status', 'open')->count() : 0;
     @endphp
 
@@ -73,6 +94,7 @@
                             <x-icon :name="$groupIcon" />
                             <span class="flex-1 text-left">{{ $group }}</span>
                             @if ($group === 'Support' && $openTickets) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" x-show="!open">{{ $openTickets }}</span> @endif
+                            @if ($group === 'Careers' && $newApplications) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" x-show="!open" title="New applications">{{ $newApplications }}</span> @endif
                             <x-icon name="chevron" class="size-3.5 transition-transform" ::class="open && 'rotate-180'" />
                         </button>
                         <div id="{{ $key }}" x-show="open" x-collapse.duration.150ms @unless ($active) x-cloak @endunless class="mt-0.5 ml-[1.15rem] space-y-0.5 border-l border-white/10 pl-2">
@@ -80,6 +102,7 @@
                                 <a href="{{ route($route) }}" @class(['nav-link py-1.5 text-[13px]', 'nav-link-active' => request()->routeIs($pattern)]) @if (request()->routeIs($pattern)) aria-current="page" @endif>
                                     {{ $label }}
                                     @if ($route === 'support.tickets.index' && $openTickets) <span class="ml-auto rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">{{ $openTickets }}</span> @endif
+                                    @if ($route === 'careers.applications' && $newApplications) <span class="ml-auto rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" title="New applications">{{ $newApplications }}</span> @endif
                                 </a>
                             @endforeach
                         </div>

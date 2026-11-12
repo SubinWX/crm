@@ -6,6 +6,7 @@ use App\Models\Lookup;
 use App\Models\Renewal;
 use App\Models\Setting;
 use App\Support\Branding;
+use App\Support\Gst;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -137,7 +138,15 @@ class Index extends Component
             'general.company_address' => ['nullable', 'string', 'max:1000'],
             'general.company_email' => ['nullable', 'email', 'max:255'],
             'general.company_phone' => ['nullable', 'string', 'max:30'],
-            'general.company_tax_id' => ['nullable', 'string', 'max:40'],
+            // With a state chosen (GST mode) the number must be a real GSTIN issued in that state.
+            'general.company_tax_id' => ['nullable', 'string', 'max:40', function ($attribute, $value, $fail) {
+                $state = $this->general['company_state'] ?? '';
+                if ($state !== '' && $state !== Gst::FOREIGN && filled($value) && Gst::stateFromGstin($value) !== $state) {
+                    $fail(Gst::validGstin($value) ? 'This GSTIN belongs to a different state than the one selected.' : 'Enter a valid 15-character GSTIN, for example 32ABCDE1234F1Z5.');
+                }
+            }],
+            'general.company_state' => ['nullable', Rule::in(array_keys(Gst::STATES))],
+            'general.invoice_default_hsn' => ['nullable', 'regex:/^[0-9]{4,8}$/'],
             'general.currency' => ['required', Rule::in(array_keys(self::CURRENCIES))],
             'general.timezone' => ['required', 'timezone:all'],
             'general.invoice_prefix' => ['nullable', 'string', 'max:10'],
@@ -152,7 +161,7 @@ class Index extends Component
 
         foreach ($this->general as $key => $value) {
             if (array_key_exists($key, Setting::DEFAULTS)) {
-                Setting::put($key, $value);
+                Setting::put($key, $key === 'company_tax_id' ? strtoupper(trim((string) $value)) : $value);
             }
         }
         activity('updated', 'Settings updated');

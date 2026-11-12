@@ -99,7 +99,7 @@ class Index extends Component
     {
         $this->form = [
             'expense_date' => today_local()->toDateString(), 'amount' => '', 'category_id' => '', 'payee' => '',
-            'payment_method_id' => '', 'description' => '', 'client_id' => '', 'is_recurring' => false, 'recurring_frequency' => 'monthly',
+            'payment_method_id' => '', 'description' => '', 'linked_to' => '', 'is_recurring' => false, 'recurring_frequency' => 'monthly',
         ];
         $this->editingId = null;
         $this->receipt = null;
@@ -122,7 +122,12 @@ class Index extends Component
             'expense_date' => $expense->expense_date->format('Y-m-d'), 'amount' => (string) (float) $expense->amount,
             'category_id' => (string) ($expense->category_id ?? ''), 'payee' => (string) $expense->payee,
             'payment_method_id' => (string) ($expense->payment_method_id ?? ''), 'description' => (string) $expense->description,
-            'client_id' => (string) ($expense->client_id ?? ''), 'is_recurring' => $expense->is_recurring,
+            'linked_to' => match (true) {
+                $expense->client_id !== null => 'client:'.$expense->client_id,
+                $expense->link_id !== null => 'link:'.$expense->link_id,
+                default => '',
+            },
+            'is_recurring' => $expense->is_recurring,
             'recurring_frequency' => $expense->recurring_frequency ?: 'monthly',
         ];
         $this->showForm = true;
@@ -137,16 +142,31 @@ class Index extends Component
             'form.payee' => ['nullable', 'string', 'max:255'],
             'form.payment_method_id' => ['nullable', Rule::exists('lookups', 'id')->where('type', 'payment_method')],
             'form.description' => ['nullable', 'string', 'max:2000'],
-            'form.client_id' => ['nullable', 'exists:clients,id'],
+            'form.linked_to' => ['nullable', 'string', function (string $attribute, mixed $value, \Closure $fail) {
+                [$kind, $id] = array_pad(explode(':', (string) $value, 2), 2, '');
+                $found = ctype_digit($id) && match ($kind) {
+                    'client' => Client::whereKey($id)->exists(),
+                    'link' => Lookup::where('type', 'expense_link')->whereKey($id)->exists(),
+                    default => false,
+                };
+                if (! $found) {
+                    $fail('Choose one of the listed options.');
+                }
+            }],
             'form.is_recurring' => ['boolean'],
             'form.recurring_frequency' => ['nullable', Rule::in(array_keys(Expense::FREQUENCIES))],
             'receipt' => ['nullable', 'file', 'max:8192', 'mimes:pdf,png,jpg,jpeg,webp'],
         ], [], [
             'form.expense_date' => 'date', 'form.amount' => 'amount', 'form.category_id' => 'category',
-            'form.payment_method_id' => 'payment method', 'form.client_id' => 'client',
+            'form.payment_method_id' => 'payment method', 'form.linked_to' => 'linked to',
         ]);
 
-        $data = collect($this->form)->map(fn ($v) => $v === '' ? null : $v)->all();
+        // A page left open from before "Linked to" gained its extra options still sends the old client field.
+        $linkedTo = $this->form['linked_to'] ?? (filled($this->form['client_id'] ?? null) ? 'client:'.$this->form['client_id'] : '');
+        $data = collect($this->form)->except(['linked_to', 'client_id'])->map(fn ($v) => $v === '' ? null : $v)->all();
+        [$kind, $id] = array_pad(explode(':', (string) $linkedTo, 2), 2, '');
+        $data['client_id'] = $kind === 'client' ? (int) $id : null;
+        $data['link_id'] = $kind === 'link' ? (int) $id : null;
         $data['is_recurring'] = (bool) $data['is_recurring'];
         $data['recurring_frequency'] = $data['is_recurring'] ? $data['recurring_frequency'] : null;
 
@@ -193,7 +213,7 @@ class Index extends Component
             ->groupBy('name')->orderByDesc('total')->get();
 
         return view('livewire.expenses.index', [
-            'expenses' => $filtered()->with(['category', 'method', 'client'])->latest('expense_date')->latest('id')->paginate(25),
+            'expenses' => $filtered()->with(['category', 'method', 'client', 'link'])->latest('expense_date')->latest('id')->paginate(25),
             'filteredTotal' => (float) $filtered()->sum('amount'),
             'todayTotal' => (float) Expense::whereDate('expense_date', $today->toDateString())->sum('amount'),
             'monthTotal' => (float) Expense::whereBetween('expense_date', [$today->copy()->startOfMonth()->toDateString(), $today->copy()->endOfMonth()->toDateString()])->sum('amount'),
@@ -210,6 +230,8 @@ class Index extends Component
             'allCategories' => Lookup::ofType('expense_category')->get(),
             'methods' => Lookup::options('payment_method', $this->form['payment_method_id'] ?? null),
             'clients' => Client::orderBy('name')->get(['id', 'name']),
+            'links' => Lookup::options('expense_link', str_starts_with((string) ($this->form['linked_to'] ?? ''), 'link:') ? (int) substr($this->form['linked_to'], 5) : null),
+            'allLinks' => Lookup::ofType('expense_link')->get(),
         ]);
     }
 }

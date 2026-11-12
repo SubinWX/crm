@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\BrandingController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\FileController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SupportAttachmentController;
 use App\Livewire;
+use App\Support\InvoicePdf;
 use Illuminate\Support\Facades\Route;
 
 // Logo and favicon (public: shown on sign-in pages and the support portal)
@@ -24,6 +26,9 @@ Route::middleware('guest:web')->group(function () {
     Route::get('/staff', [LoginController::class, 'create'])->defaults('area', 'staff')->name('staff.login');
     Route::post('/staff', [LoginController::class, 'store'])->defaults('area', 'staff')->middleware('throttle:20,1');
     Route::redirect('/staff/login', '/staff');
+    // Second step for accounts with two-step login: the 6-digit code.
+    Route::get('/two-step', [TwoFactorController::class, 'create'])->name('two-factor.challenge');
+    Route::post('/two-step', [TwoFactorController::class, 'store'])->middleware('throttle:20,1');
     Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'email'])->middleware('throttle:6,1')->name('password.email');
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
@@ -35,8 +40,9 @@ Route::middleware('guest:web')->group(function () {
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth:web')->name('logout');
 
 // Team side. Pinned to the "web" guard so a support portal session can never satisfy it.
-Route::middleware(['auth:web', 'active'])->group(function () {
+Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function () {
     Route::get('/', Livewire\Dashboard::class)->name('dashboard');
+    Route::get('/account/two-step', Livewire\Account\TwoFactor::class)->name('two-factor.setup');
     Route::get('/notifications', Livewire\Notifications\Center::class)->name('notifications');
     Route::view('/help', 'help')->name('help');
     Route::get('/calendar', Livewire\Calendar\Index::class)->name('calendar');
@@ -57,6 +63,23 @@ Route::middleware(['auth:web', 'active'])->group(function () {
 
     Route::get('/equipment', Livewire\Equipment\Index::class)->name('equipment.index');
 
+    // Email Tools: signature and template builders, open to everyone on the team.
+    Route::get('/email-tools/signature', Livewire\EmailTools\Signature::class)->name('email-tools.signature');
+    Route::get('/email-tools/templates', Livewire\EmailTools\Template::class)->name('email-tools.templates');
+    Route::get('/email-tools/saved-signatures', Livewire\EmailTools\SavedSignatures::class)->name('email-tools.saved-signatures');
+    Route::get('/email-tools/saved-templates', Livewire\EmailTools\SavedTemplates::class)->name('email-tools.saved-templates');
+
+    // Careers (team side): vacancies and the applications received. Resumes are private files.
+    Route::middleware('can:careers.manage')->group(function () {
+        Route::get('/recruitment', Livewire\Careers\Manage::class)->name('careers.manage');
+        Route::get('/recruitment/applications', Livewire\Careers\Manage::class)->defaults('tab', 'applications')->name('careers.applications');
+        Route::get('/recruitment/vacancies', Livewire\Careers\Manage::class)->defaults('tab', 'vacancies')->name('careers.vacancies');
+        Route::get('/recruitment/page-settings', Livewire\PublicPages\PageSettings::class)->defaults('page', 'careers')->name('careers.settings');
+        Route::get('/recruitment/export', [ExportController::class, 'applications'])->name('careers.export');
+        Route::get('/recruitment/applications/{application}/resume', [FileController::class, 'resume'])->name('careers.resume');
+        Route::get('/recruitment/applications/{application}/resume/view', [FileController::class, 'resumeView'])->name('careers.resume.view');
+    });
+
     // Shared team areas: everyone except Sub Admins (uploads need posters.manage)
     Route::middleware('can:workspace')->group(function () {
         Route::get('/tasks', Livewire\Tasks\Index::class)->name('tasks.index');
@@ -68,6 +91,8 @@ Route::middleware(['auth:web', 'active'])->group(function () {
 
     // Finance: Super Admins only
     Route::middleware('can:finance')->group(function () {
+        Route::get('/gst-summary', Livewire\Finance\GstSummary::class)->name('gst.summary');
+        Route::get('/gst-summary/export', [ExportController::class, 'gst'])->name('gst.export');
         Route::get('/invoices', Livewire\Invoices\Index::class)->name('invoices.index');
         Route::get('/invoices/export-pdf', [ReportController::class, 'invoices'])->name('invoices.export');
         Route::get('/invoices/create', Livewire\Invoices\Form::class)->name('invoices.create');
@@ -114,6 +139,7 @@ Route::middleware(['auth:web', 'active'])->group(function () {
         Route::get('/support-desk/tickets', Livewire\Support\Tickets::class)->name('support.tickets.index');
         Route::get('/support-desk/tickets/{ticket}', Livewire\Support\TicketShow::class)->name('support.tickets.show');
         Route::get('/support-desk/attachments/{attachment}', [SupportAttachmentController::class, 'staff'])->name('support.attachments');
+        Route::get('/support-desk/page-settings', Livewire\PublicPages\PageSettings::class)->defaults('page', 'support')->name('support.settings');
     });
     Route::get('/support-desk/portal-users', Livewire\Support\PortalUsers::class)->middleware('can:portal-users.manage')->name('support.portal-users');
 
@@ -121,12 +147,33 @@ Route::middleware(['auth:web', 'active'])->group(function () {
     Route::middleware('can:admin')->group(function () {
         Route::get('/users', Livewire\Users\Index::class)->name('users.index');
         Route::get('/settings', Livewire\Settings\Index::class)->name('settings.index');
+        Route::get('/settings/email-whatsapp', Livewire\Settings\Messaging::class)->name('settings.messaging');
+        Route::get('/settings/public-pages', Livewire\Settings\PublicPages::class)->name('settings.public-pages');
+        Route::get('/settings/pdf', Livewire\Settings\PdfSettings::class)->name('settings.pdf');
+        Route::get('/settings/pdf/sample', fn () => InvoicePdf::make(InvoicePdf::sample())->stream('sample-invoice.pdf'))->name('settings.pdf.sample');
         Route::get('/settings/quote-templates', Livewire\Quotes\Templates::class)->name('quote-templates.index');
         Route::get('/settings/quote-templates/create', Livewire\Quotes\TemplateForm::class)->name('quote-templates.create');
         Route::get('/settings/quote-templates/{template}/edit', Livewire\Quotes\TemplateForm::class)->name('quote-templates.edit');
         Route::get('/activity', Livewire\Activity\Index::class)->name('activity.index');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Public careers pages: /careers
+|--------------------------------------------------------------------------
+| No sign-in. Lists open vacancies; each has its own page with an application form.
+*/
+Route::get('/careers', Livewire\Careers\Listing::class)->name('careers.index');
+// Headshots uploaded for email signatures. Public on purpose: the people who receive the email must be able to load them.
+// The 40-character random name is the only way to reach a file.
+Route::get('/e/{file}', [BrandingController::class, 'emailAsset'])->where('file', '[A-Za-z0-9]{40}\.jpg')->name('email.asset');
+
+// Logo and banner images of the public pages (public: they are part of the page). Set in Public Pages and each Page Settings.
+Route::get('/site/logo', [BrandingController::class, 'siteLogo'])->name('site.logo');
+Route::get('/site/banner/{page}', [BrandingController::class, 'siteBanner'])->name('site.banner');
+Route::get('/careers/general-application', Livewire\Careers\Apply::class)->name('careers.general');
+Route::get('/careers/{slug}', Livewire\Careers\Apply::class)->name('careers.show');
 
 /*
 |--------------------------------------------------------------------------

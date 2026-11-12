@@ -24,7 +24,10 @@ class User extends Authenticatable
 
     public const ROLES = [self::ROLE_SUPER_ADMIN => 'Super Admin', self::ROLE_SUB_ADMIN => 'Sub Admin', self::ROLE_STAFF => 'Staff'];
 
-    /** Permissions a Super Admin can grant to Staff. Finance, users and settings stay Super Admin only. */
+    /**
+     * Access a Super Admin can switch on for each person, set in the user form.
+     * Users, settings and the activity log always stay with Super Admins.
+     */
     public const STAFF_PERMISSIONS = [
         'clients.view' => 'View clients, hosting and files',
         'clients.manage' => 'Add, edit and archive clients and hosting',
@@ -32,14 +35,41 @@ class User extends Authenticatable
         'posters.manage' => 'Upload and edit social media posters',
         'support.manage' => 'Answer and manage support tickets',
         'sales.manage' => 'Manage leads, follow-ups, quotes and proposals',
+        'careers.manage' => 'Manage job vacancies and applications',
+        'finance.manage' => 'Invoices, payments, expenses and GST reports',
     ];
+
+    /** The same options grouped the way the menu is, for the user form. */
+    public const PERMISSION_GROUPS = [
+        'Clients & Work' => ['clients.view', 'clients.manage', 'tasks.manage', 'posters.manage'],
+        'Sales' => ['sales.manage'],
+        'Support' => ['support.manage'],
+        'Careers' => ['careers.manage'],
+        'Finance' => ['finance.manage'],
+    ];
+
+    /**
+     * Extra areas a Sub Admin may be given on top of their own clients. These areas show every
+     * record in them, not only the Sub Admin's clients, so they are off unless switched on.
+     */
+    public const SUB_ADMIN_PERMISSIONS = ['sales.manage', 'support.manage', 'careers.manage', 'finance.manage'];
+
+    /** The options that can be ticked for a role. Super Admins have everything, so nothing is ticked for them. */
+    public static function grantable(string $role): array
+    {
+        return match ($role) {
+            self::ROLE_STAFF => array_keys(self::STAFF_PERMISSIONS),
+            self::ROLE_SUB_ADMIN => self::SUB_ADMIN_PERMISSIONS,
+            default => [],
+        };
+    }
 
     protected $fillable = [
         'name', 'email', 'password', 'phone', 'alt_phone', 'date_of_birth', 'avatar_path', 'role', 'is_active', 'permissions',
         'invitation_token', 'invited_at', 'invited_by', 'last_login_at',
     ];
 
-    protected $hidden = ['password', 'remember_token', 'invitation_token'];
+    protected $hidden = ['password', 'remember_token', 'invitation_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
     protected function casts(): array
     {
@@ -51,6 +81,9 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'permissions' => 'array',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -72,17 +105,52 @@ class User extends Authenticatable
         if ($this->isSuperAdmin()) {
             return true;
         }
-        if ($this->isSubAdmin()) {
-            // Fixed, minimal access. Which clients they can open is decided by the "client.access" gate.
-            return $permission === 'clients.view';
-        }
         $granted = $this->permissions ?? [];
+        if ($this->isSubAdmin()) {
+            // Always their own clients (which ones is decided by the "client.access" gate), plus any extra area switched on for them.
+            return $permission === 'clients.view'
+                || (in_array($permission, self::SUB_ADMIN_PERMISSIONS, true) && in_array($permission, $granted, true));
+        }
         // Managing clients implies being able to see them.
         if ($permission === 'clients.view' && in_array('clients.manage', $granted, true)) {
             return true;
         }
 
         return in_array($permission, $granted, true);
+    }
+
+    /** Two-step login is on once the authenticator app has been confirmed with a code. */
+    public function hasTwoFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && filled($this->two_factor_secret);
+    }
+
+    /** A Super Admin who still has to set it up because "Require two-step login for Super Admins" is on. */
+    public function mustSetUpTwoFactor(): bool
+    {
+        return $this->isSuperAdmin() && ! $this->hasTwoFactor() && setting('require_two_factor') === '1';
+    }
+
+    /** Each recovery code signs in once. Returns false when the code is not one of the unused ones. */
+    public function useRecoveryCode(string $code): bool
+    {
+        $code = strtolower(preg_replace('/\s+/', '', $code));
+        $codes = $this->two_factor_recovery_codes ?? [];
+        foreach ($codes as $index => $stored) {
+            if (hash_equals($stored, $code)) {
+                unset($codes[$index]);
+                $this->forceFill(['two_factor_recovery_codes' => array_values($codes)])->save();
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function clearTwoFactor(): void
+    {
+        $this->forceFill(['two_factor_secret' => null, 'two_factor_recovery_codes' => null, 'two_factor_confirmed_at' => null])->save();
     }
 
     public function equipment(): HasMany

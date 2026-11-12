@@ -9,6 +9,8 @@ use App\Models\Equipment;
 use App\Models\Expense;
 use App\Models\HostingRecord;
 use App\Models\Invoice;
+use App\Models\JobApplication;
+use App\Models\JobVacancy;
 use App\Models\Lead;
 use App\Models\Quote;
 use App\Models\Task;
@@ -88,6 +90,25 @@ class Dashboard extends Component
         if ($data['canAdmin']) {
             $data['recentActivity'] = ActivityLog::with('user')->whereIn('action', ActivityIndex::AUTH_ACTIONS)
                 ->orWhere('subject_type', 'user')->latest('created_at')->latest('id')->limit(8)->get();
+        }
+
+        if ($data['canCareers'] = Gate::allows('careers.manage')) {
+            $counts = JobApplication::query()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+            $total = (int) $counts->sum();
+            // Slices in pipeline order, each with where it starts on the circle (as a percentage).
+            $offset = 0;
+            $data['careers'] = [
+                'total' => $total,
+                'slices' => collect(JobApplication::STATUSES)->map(function ($label, $status) use ($counts, $total, &$offset) {
+                    $count = (int) ($counts[$status] ?? 0);
+                    $slice = ['status' => $status, 'label' => $label, 'count' => $count, 'percent' => $total ? round($count / $total * 100, 1) : 0, 'offset' => $offset, 'color' => JobApplication::STATUS_COLORS[$status]];
+                    $offset += $slice['percent'];
+
+                    return $slice;
+                })->values(),
+                'openVacancies' => JobVacancy::accepting()->count(),
+                'thisMonth' => JobApplication::where('created_at', '>=', $monthStartUtc)->count(),
+            ];
         }
 
         return view('livewire.dashboard', $data);

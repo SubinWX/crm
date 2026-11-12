@@ -5,6 +5,7 @@ namespace App\Livewire\Work;
 use App\Models\Client;
 use App\Models\HostingRecord;
 use App\Models\Renewal;
+use App\Support\WhatsApp;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -134,6 +135,21 @@ class Renewals extends Component
     {
         Gate::authorize('clients.manage');
         $this->find($id)->delete();
+    }
+
+    /** With the WhatsApp API connected, the row's WhatsApp button sends the reminder itself and records it. */
+    public function sendWhatsApp(int $id): void
+    {
+        $renewal = Renewal::with('client')->findOrFail($id);
+        Gate::authorize('client.access', $renewal->client);
+        abort_unless(WhatsApp::enabled() && $renewal->renewal_date, 422);
+
+        $log = WhatsApp::queue('manual', 'renewal', $renewal->client, $renewal->client->phone1 ?: $renewal->client->phone2, [
+            'client' => $renewal->client->name, 'item' => $renewal->name, 'date' => fmt_date($renewal->renewal_date),
+            'amount' => $renewal->amount !== null ? money($renewal->amount) : '—',
+        ], 'renewal', $renewal->id);
+        activity('whatsapp_reminder', "WhatsApp renewal reminder for {$renewal->name} ".($log?->status === 'skipped' ? 'not sent: no valid mobile number' : 'queued'), $renewal);
+        $this->dispatch('toast', message: $log?->status === 'skipped' ? 'Not sent: this client has no valid mobile number saved.' : 'WhatsApp reminder queued for '.$renewal->client->name.'.');
     }
 
     public function startRenewal(int $id): void

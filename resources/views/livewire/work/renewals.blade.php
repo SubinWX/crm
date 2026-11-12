@@ -78,6 +78,9 @@
                             </td>
                             <td class="text-xs whitespace-nowrap text-stone-600">{{ $renewal->status === 'active' && $renewal->renewal_date ? collect(\App\Models\Renewal::reminderDays($renewal->type))->map(fn ($d) => $d.'d')->implode(', ').' before' : '—' }}</td>
                             <td class="text-right whitespace-nowrap">
+                                @if ($renewal->status === 'active' && $renewal->renewal_date && $renewal->client)
+                                    <x-whatsapp-reminder :client="$renewal->client" kind="renewal" send="sendWhatsApp({{ $renewal->id }})" :values="['item' => $renewal->name, 'date' => fmt_date($renewal->renewal_date), 'amount' => $renewal->amount !== null ? money($renewal->amount) : '—']" />
+                                @endif
                                 @if ($canManage && $renewal->status === 'active' && $renewal->renewal_date) <button type="button" class="btn-secondary btn-sm" wire:click="startRenewal({{ $renewal->id }})">Record Renewal</button> @endif
                                 <button type="button" class="btn-ghost btn-sm" wire:click="toggle({{ $renewal->id }})">History</button>
                                 @if ($canManage) <button type="button" class="btn-ghost btn-sm" wire:click="edit({{ $renewal->id }})">Edit</button> @endif

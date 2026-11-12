@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -38,6 +40,19 @@ class LoginController extends Controller
             throw ValidationException::withMessages([
                 'email' => 'Too many attempts. Try again in '.RateLimiter::availableIn($throttleKey).' seconds.',
             ]);
+        }
+
+        // Accounts with two-step login are not signed in yet: the password is checked, then the code is asked for.
+        $candidate = User::where('email', Str::lower($credentials['email']))->first();
+        if ($candidate?->is_active && $candidate->hasTwoFactor() && $candidate->loginArea() === $area
+            && Hash::check($credentials['password'], (string) $candidate->password)) {
+            RateLimiter::clear($throttleKey);
+            $request->session()->put('two_factor', [
+                'user_id' => $candidate->id, 'remember' => $request->boolean('remember'), 'area' => $area,
+                'expires' => now()->addMinutes(TwoFactorController::MINUTES)->getTimestamp(),
+            ]);
+
+            return redirect()->route('two-factor.challenge');
         }
 
         // is_active is part of the credentials, so deactivated users cannot sign in.

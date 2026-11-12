@@ -7,6 +7,7 @@ use App\Models\HostingRecord;
 use App\Models\Lookup;
 use App\Models\ReminderLog;
 use App\Services\ReminderService;
+use App\Support\WhatsApp;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -151,6 +152,21 @@ class Index extends Component
         Gate::authorize('clients.manage');
         $this->findRecord($id)->delete();
         $this->dispatch('toast', message: 'Hosting record deleted.');
+    }
+
+    /** With the WhatsApp API connected, the row's WhatsApp button sends the reminder itself and records it. */
+    public function sendWhatsApp(int $id): void
+    {
+        $record = HostingRecord::with('client')->findOrFail($id);
+        Gate::authorize('client.access', $record->client);
+        abort_unless(WhatsApp::enabled() && $record->next_payment_date, 422);
+
+        $log = WhatsApp::queue('manual', 'hosting', $record->client, $record->client->phone1 ?: $record->client->phone2, [
+            'client' => $record->client->name, 'item' => $record->domain ?: 'your website', 'date' => fmt_date($record->next_payment_date),
+            'amount' => $record->renewal_amount !== null ? money($record->renewal_amount) : '—',
+        ], 'hosting', $record->id);
+        activity('whatsapp_reminder', 'WhatsApp hosting reminder for '.($record->domain ?: $record->client->name).' '.($log?->status === 'skipped' ? 'not sent: no valid mobile number' : 'queued'), $record);
+        $this->dispatch('toast', message: $log?->status === 'skipped' ? 'Not sent: this client has no valid mobile number saved.' : 'WhatsApp reminder queued for '.$record->client->name.'.');
     }
 
     public function startRenewal(int $id): void

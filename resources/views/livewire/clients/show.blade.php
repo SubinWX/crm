@@ -79,7 +79,7 @@
                     </div>
                     <div class="sm:col-span-2 lg:col-span-3">
                         <dt class="text-xs font-semibold tracking-wide text-stone-500 uppercase">Notes</dt>
-                        <dd class="mt-0.5 whitespace-pre-line text-stone-900">{{ $client->notes ?: '—' }}</dd>
+                        <dd class="rich mt-0.5 text-stone-900">{{ $client->notes ? rich($client->notes) : '—' }}</dd>
                     </div>
                 </dl>
                 <p class="border-t border-stone-100 px-4 py-2.5 text-xs text-stone-500">

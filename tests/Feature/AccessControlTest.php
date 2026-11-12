@@ -396,4 +396,38 @@ class AccessControlTest extends TestCase
         auth()->logout();
         $this->get(route('posters.image', $poster))->assertRedirect(route('login'));
     }
+
+    public function test_an_expense_can_be_linked_to_office_self_other_or_a_client(): void
+    {
+        $category = Lookup::firstOrCreate(['type' => 'expense_category', 'name' => 'Travel'])->id;
+        $office = Lookup::where('type', 'expense_link')->where('name', 'Office')->value('id');
+        $this->assertNotNull($office);
+        $this->assertSame(['Office', 'Self', 'Other'], Lookup::ofType('expense_link')->pluck('name')->all());
+
+        $form = ['form.expense_date' => '2026-11-12', 'form.amount' => '3000', 'form.category_id' => $category, 'form.payee' => 'Cab'];
+
+        Livewire::actingAs($this->admin)->test(ExpensesIndex::class)
+            ->call('create')->set($form)->set('form.linked_to', 'link:'.$office)->call('save')->assertHasNoErrors();
+        $expense = Expense::where('payee', 'Cab')->firstOrFail();
+        $this->assertSame([null, $office], [$expense->client_id, $expense->link_id]);
+        $this->assertSame('Office', $expense->linkedToLabel());
+
+        // Switching it to a client clears the option, and back to overhead clears both.
+        Livewire::actingAs($this->admin)->test(ExpensesIndex::class)
+            ->call('edit', $expense->id)->assertSet('form.linked_to', 'link:'.$office)
+            ->set('form.linked_to', 'client:'.$this->client->id)->call('save')->assertHasNoErrors();
+        $this->assertSame([$this->client->id, null], [$expense->refresh()->client_id, $expense->link_id]);
+        $this->assertSame($this->client->name, $expense->linkedToLabel());
+
+        Livewire::actingAs($this->admin)->test(ExpensesIndex::class)
+            ->call('edit', $expense->id)->set('form.linked_to', 'link:999999')->call('save')->assertHasErrors('form.linked_to')
+            ->set('form.linked_to', 'client:abc')->call('save')->assertHasErrors('form.linked_to')
+            ->set('form.linked_to', '')->call('save')->assertHasNoErrors();
+        $this->assertSame('General overhead', $expense->refresh()->linkedToLabel());
+
+        $expense->update(['link_id' => $office]);
+        $this->assertSame(1, ExpenseFilters::apply(Expense::query(), ['client' => 'link:'.$office])->count());
+        $this->assertSame(0, ExpenseFilters::apply(Expense::query(), ['client' => 'overhead'])->where('payee', 'Cab')->count());
+        $this->actingAs($this->admin)->get(route('expenses.export-pdf', ['client' => 'link:'.$office]))->assertOk();
+    }
 }

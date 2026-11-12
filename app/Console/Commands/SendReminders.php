@@ -17,8 +17,8 @@ class SendReminders extends Command
         $stats = $reminders->run($today);
 
         $this->info(sprintf(
-            'Reminders due: %d · deliveries queued: %d · stale deliveries re-queued: %d',
-            $stats['due'], $stats['queued'], $stats['requeued']
+            'Reminders due: %d · deliveries queued: %d · stale deliveries re-queued: %d · WhatsApp messages to clients queued: %d',
+            $stats['due'], $stats['queued'], $stats['requeued'], $stats['whatsapp']
         ));
 
         return self::SUCCESS;

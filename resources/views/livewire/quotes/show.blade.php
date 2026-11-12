@@ -44,7 +44,7 @@
                     @foreach ($quote->sections->where('is_hidden', false) as $section)
                         <div class="p-4 sm:p-5">
                             <h2 class="text-sm font-semibold text-stone-900">{{ $section->title }}</h2>
-                            <div class="mt-1.5 text-sm leading-relaxed break-words whitespace-pre-line text-stone-700">{{ $section->body }}</div>
+                            <div class="rich mt-1.5 text-sm text-stone-700">{{ rich($section->body, autolink: true) }}</div>
                         </div>
                     @endforeach
                 </section>
@@ -137,7 +137,7 @@
                         <button type="button" class="btn-danger" wire:click="deleteDraft" wire:confirm="Delete this draft permanently?">Delete draft</button>
                     @endif
                 </div>
-                @if ($quote->notes) <p class="border-t border-stone-200 p-4 text-sm whitespace-pre-line text-stone-600"><span class="label">Internal notes</span>{{ $quote->notes }}</p> @endif
+                @if ($quote->notes) <div class="border-t border-stone-200 p-4 text-sm text-stone-600"><span class="label">Internal notes</span><div class="rich">{{ rich($quote->notes) }}</div></div> @endif
             </section>
         </aside>
     </div>

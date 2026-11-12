@@ -13,10 +13,14 @@
         ['renewals', 'Hosting and renewals', $team && $can('clients.view')],
         ['projects', 'Projects and services', $team && $can('clients.view')],
         ['finance', 'Invoices, payments and expenses', $can('finance')],
+        ['gst', 'GST invoices and summary', $can('finance')],
         ['support', 'Support portal and tickets', $can('support.manage') || $can('portal-users.manage')],
         ['posters', 'Social media posters', $can('posters.view')],
         ['equipment', 'Equipment', true],
         ['notifications', 'Notifications and reminders', $team],
+        ['careers', 'Careers and job applications', $can('careers.manage')],
+        ['email-tools', 'Email signatures and templates', true],
+        ['security', 'Two-step login', true],
         ['admin', 'Users, roles and settings', $can('admin')],
         ['faq', 'Common questions', true],
     ], fn ($s) => $s[2]));
@@ -46,8 +50,8 @@
                 <h3>Who can do what</h3>
                 <ul>
                     <li><strong>Super Admin</strong> — everything, including finance, users and settings.</li>
-                    <li><strong>Staff</strong> — the areas a Super Admin has ticked for them (clients, tasks, posters, sales, support).</li>
-                    <li><strong>Sub Admin</strong> — adds clients and sees and edits only the clients they added.</li>
+                    <li><strong>Staff</strong> — the areas a Super Admin has ticked for them (clients, tasks, posters, sales, support, careers, finance).</li>
+                    <li><strong>Sub Admin</strong> — adds clients and sees and edits only the clients they added, plus any extra area ticked for them (sales, support, careers, finance).</li>
                 </ul>
                 <h3>Things that work the same everywhere</h3>
                 <ul>
@@ -70,7 +74,7 @@
             @if ($can('clients.view'))
                 <section id="clients" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Clients</h2>
-                    <p>Open <strong>Clients &amp; Work → Clients</strong>. Search by name, contact, email or phone, and filter by status, industry, work type, source and account manager.</p>
+                    <p>Open <strong>Clients → All Clients</strong>. Search by name, contact, email or phone, and filter by status, industry, work type, source and account manager.</p>
                     @if ($can('clients.create'))
                         <h3>Add a client</h3>
                         <ol>
@@ -122,7 +126,7 @@
             @if ($can('tasks.view'))
                 <section id="tasks" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Tasks and follow-ups</h2>
-                    <p><strong>Clients &amp; Work → Tasks &amp; Follow-ups</strong> is one list for work to do and things to chase, for clients{{ $can('sales.manage') ? ' and leads' : '' }}.</p>
+                    <p><strong>Work → Tasks &amp; Follow-ups</strong> is one list for work to do and things to chase, for clients{{ $can('sales.manage') ? ' and leads' : '' }}.</p>
                     <ul>
                         <li>Start the day with the filters <strong>Due today or overdue</strong> and <strong>Assigned to me</strong>.</li>
                         <li>Change a task's status straight from the list. You can always update tasks assigned to you.</li>
@@ -135,7 +139,7 @@
             @if ($team && $can('clients.view'))
                 <section id="renewals" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Hosting and renewals</h2>
-                    <p><strong>Clients &amp; Work → Hosting &amp; Renewals</strong> holds everything that renews.</p>
+                    <p><strong>Clients → Hosting &amp; Renewals</strong> holds everything that renews.</p>
                     <ul>
                         <li><strong>Overview</strong> — hosting, domains, maintenance and retainers together, soonest first.</li>
                         <li><strong>Paid Server Clients (Hosting)</strong> — hosting you bill for, with filters for overdue, due within 7 days and due within 2 months.</li>
@@ -154,7 +158,7 @@
 
                 <section id="projects" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Projects and services</h2>
-                    <p><strong>Clients &amp; Work → Projects &amp; Services</strong> tracks each client's projects and ongoing services: owner, status, deadline and the next milestone. A project can be linked to the accepted quote it came from. Overdue deadlines are flagged in red.</p>
+                    <p><strong>Work → Projects &amp; Services</strong> tracks each client's projects and ongoing services: owner, status, deadline and the next milestone. A project can be linked to the accepted quote it came from. Overdue deadlines are flagged in red.</p>
                 </section>
             @endif
 
@@ -176,7 +180,7 @@
                     </ol>
                     <p><strong>Pending amount</strong> = issued invoices minus payments applied to them. Drafts and void invoices are not counted. An invoice shows as <em>Overdue</em> once its due date passes.</p>
                     <h3>Expenses</h3>
-                    <p><strong>Finance → Expenses</strong> records daily spend with a category, payee and optional receipt, linked to a client or kept as general overhead. The <em>Recurring</em> tab separates subscriptions and regular bills. Totals, a category breakdown and CSV or PDF downloads follow the filters you set.</p>
+                    <p><strong>Finance → Expenses</strong> records daily spend with a category, payee and optional receipt, linked to a client, to an option such as Office, Self or Other, or kept as general overhead. The options are edited in Settings → Dropdown values. The <em>Recurring</em> tab separates subscriptions and regular bills. Totals, a category breakdown and CSV or PDF downloads follow the filters you set.</p>
                 </section>
             @endif
 
@@ -198,21 +202,84 @@
                         </ol>
                         <p>If a request arrives by phone or WhatsApp, use <strong>New ticket</strong> to log it for that customer so everything stays in one place.</p>
                     @endif
+                    @if ($can('support.manage')) <p><strong>Support → Page Settings</strong> sets the support portal’s banner (photo, heading, description) and the call-to-action band above its footer. The logo, header button, footer and social links come from <strong>Administration → Public Pages</strong> and are the same on the careers pages.</p> @endif
                     @if ($can('portal-users.manage')) <p><strong>Support → Portal Users</strong> is the portal's login list. You can add a portal user with a password, link them to a client, or disable an account.</p> @endif
                 </section>
             @endif
 
+            @if ($can('careers.manage'))
+                <section id="careers" class="card p-5 text-sm leading-relaxed text-stone-700">
+                    <h2>Careers and job applications</h2>
+                    <p>Job seekers use a public page at <a class="link" href="{{ route('careers.index') }}">{{ route('careers.index') }}</a>. It needs no sign-in. Link to it from your website menu or footer.</p>
+                    <h3>Posting a vacancy</h3>
+                    <ol>
+                        <li>Open <strong>Careers → Vacancies</strong> in the menu and choose <strong>Add Vacancy</strong>.</li>
+                        <li>Fill in the title, description and requirements. The description and requirements boxes have a toolbar for bold text, bullet lists and links. Set the status to <strong>Open</strong> to publish it, or <strong>Draft</strong> to keep it hidden while you write.</li>
+                        <li>Use <strong>Copy link</strong> on the Vacancies page to share that job's own page. A closing date stops applications automatically.</li>
+                    </ol>
+                    <h3>Handling applications</h3>
+                    <ul>
+                        <li>Each application arrives with the person's details and resume. You get a notification and an email, and the applicant gets a confirmation email.</li>
+                        <li><strong>Careers → Overview</strong> shows only the applications from the last 3 days, with a chart of how many arrived per day or month.</li>
+                        <li>On <strong>Careers → All Applications</strong>, filter by vacancy, status or the date applied, and sort by newest, oldest, name, rating, experience or interview date.</li>
+                        <li>Open an application to download the resume, set a status (Shortlisted, Interview, Offered, Hired, Rejected), give a rating, add private notes and set an interview time. Interviews and closing dates also show on the <strong>Calendar</strong>.</li>
+                        <li><strong>Export CSV</strong> downloads the applications matching your filters.</li>
+                    </ul>
+                    <h3>Changing how the careers page looks</h3>
+                    <p><strong>Careers → Page Settings</strong> sets this page’s banner (background photo, heading, description, height, how much the photo is darkened) and the call-to-action band above the footer (heading, text and one button). The logo, the header link and button, the footer and the social media links are shared with the support portal and are set by a Super Admin in <strong>Administration → Public Pages</strong>.</p>
+                    <p>The "Send your resume" button on the careers page collects general applications when no listed role fits.</p>
+                </section>
+            @endif
+
+            @if ($can('finance'))
+                <section id="gst" class="card p-5 text-sm leading-relaxed text-stone-700">
+                    <h2>GST invoices and the monthly summary</h2>
+                    <ol>
+                        <li>A Super Admin chooses your company’s state and enters its GSTIN in <strong>Settings → General</strong>. This switches invoices to GST.</li>
+                        <li>On each client, fill in <strong>GSTIN</strong> (if they have one) and <strong>State</strong>.</li>
+                        <li>On a new invoice, check the <strong>Place of supply</strong> and the <strong>HSN / SAC</strong> code on each line. A client in your state is charged CGST + SGST; a client in another state is charged IGST. The PDF becomes a “Tax Invoice”.</li>
+                        <li>After the month ends, open <strong>Finance → GST Summary</strong>, pick the month and download the <strong>Invoice register</strong> and <strong>HSN summary</strong> for your accountant.</li>
+                    </ol>
+                    <p>Only invoices marked as sent are counted. Drafts and voided invoices are left out.</p>
+                </section>
+            @endif
+
+            <section id="email-tools" class="card p-5 text-sm leading-relaxed text-stone-700">
+                <h2>Email signatures and templates</h2>
+                <h3>Your email signature</h3>
+                <ol>
+                    <li>Open <strong>Email Tools → Email Signatures</strong>. Your name, email and the company details are filled in for you.</li>
+                    <li>Pick one of the four layouts (Showcase adds a large photo, a starred highlight line and a banner image), add your designation, photo, colours and social links. The preview updates as you type.</li>
+                    <li>Press <strong>Copy signature</strong> and paste it into the signature box of Gmail, Outlook or your phone’s mail app. Name it and press <strong>Save signature</strong>. Everything you save is listed under <strong>Email Tools → Saved Signatures</strong>, where you can open, preview, copy, duplicate or delete each one.</li>
+                </ol>
+                <h3>Email templates</h3>
+                <p><strong>Email Tools → Email Templates</strong> builds a complete email with a header and footer: choose a layout, write the heading and message, and add a button or a banner image if you need one. The footer takes your company name, address, phone and email. <strong>Copy email</strong> pastes into a new message; <strong>Copy HTML code</strong> is for email services such as Mailchimp or Brevo. Name a template and save it to reuse it. Saved templates are listed under <strong>Email Tools → Saved Email Templates</strong> and are shared with the team.</p>
+                <p>Both are built the way email programs need (tables and simple styles) and adjust to phone screens. Photos and logos must be at a public web address to show for the people you email.</p>
+            </section>
+
+            <section id="security" class="card p-5 text-sm leading-relaxed text-stone-700">
+                <h2>Two-step login</h2>
+                <p>With two-step login, signing in asks for a 6-digit code from an app on your phone after your password, so a stolen password is not enough.</p>
+                <ol>
+                    <li>Install Google Authenticator, Microsoft Authenticator or Authy on your phone.</li>
+                    <li>Open the menu at the top right and choose <strong>Two-step login</strong>, then <strong>Set up</strong>.</li>
+                    <li>Scan the QR code with the app and type the code it shows.</li>
+                    <li>Save the eight recovery codes somewhere safe. Each one signs you in once if you lose your phone.</li>
+                </ol>
+                @if ($can('admin')) <p>On the <strong>Users</strong> page you can make two-step login required for every Super Admin, and use <strong>Reset 2-step</strong> for someone who has lost their phone and their recovery codes.</p> @endif
+            </section>
+
             @if ($can('posters.view'))
                 <section id="posters" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Social media posters</h2>
-                    <p><strong>Clients &amp; Work → Social Media Posters</strong> is the library of finished creatives. Search by title, caption, tag or campaign and filter by platform or client. Click a poster for the full-size preview and <strong>Download original</strong>.{{ $can('posters.manage') ? ' Use Upload Poster to add one with a title, platform, client, caption and tags.' : '' }}</p>
+                    <p><strong>Work → Social Media Posters</strong> is the library of finished creatives. Search by title, caption, tag or campaign and filter by platform or client. Click a poster for the full-size preview and <strong>Download original</strong>.{{ $can('posters.manage') ? ' Use Upload Poster to add one with a title, platform, client, caption and tags.' : '' }}</p>
                 </section>
             @endif
 
             <section id="equipment" class="card p-5 text-sm leading-relaxed text-stone-700">
                 <h2>Equipment</h2>
                 @if ($can('admin'))
-                    <p><strong>Clients &amp; Work → Equipment</strong> is the register of laptops, phones and other items. Add an item, choose who it is assigned to, and record its serial number, condition and cost. The buttons along the top filter by person; unassigned items sit under <em>In stock</em>.</p>
+                    <p><strong>Work → Equipment</strong> is the register of laptops, phones and other items. Add an item, choose who it is assigned to, and record its serial number, condition and cost. The buttons along the top filter by person; unassigned items sit under <em>In stock</em>.</p>
                 @else
                     <p><strong>My Equipment</strong> lists the items issued to you. If something is wrong or missing, tell a Super Admin.</p>
                 @endif
@@ -238,11 +305,16 @@
                     <h2>Users, roles and settings</h2>
                     <h3>Adding people</h3>
                     <ol>
-                        <li><strong>Administration → Users → Add user.</strong> Choose the role and, for Staff, tick what they may do.</li>
+                        <li><strong>Administration → Users → Add user.</strong> Choose the role, then tick under <strong>Access</strong> what this person may use. Super Admins always have everything.</li>
                         <li>Type a password to make the account usable straight away, or leave it empty to email an invitation.</li>
                         <li>Share the right sign-in link, shown at the top of the Users screen.</li>
                     </ol>
                     <p>Deactivating a user signs them out and blocks sign-in but keeps their history, including payments they received.</p>
+                    <h3>How PDFs look</h3>
+                    <p><strong>Administration → PDF Settings</strong> sets the logo, header, footer, page border, table style and accent colour used on every PDF: invoices, quotes and reports. Use <strong>View sample PDF</strong> to check the result before sending anything to a client.</p>
+                    <h3>Email and WhatsApp</h3>
+                    <p><strong>WhatsApp button.</strong> Open invoices, renewals and hosting records each have a <strong>WhatsApp</strong> button. It opens WhatsApp with the reminder already typed for that client, and you press send. It goes from whichever WhatsApp account is signed in on your computer or phone, and works without any API. If the client has no mobile number saved, WhatsApp asks you to choose the contact. Once the WhatsApp API is connected, invoices also get <strong>Send WhatsApp reminder</strong>, which sends it for you, and reminders go out automatically.</p>
+                    <p><strong>Administration → Email &amp; WhatsApp</strong> connects the email mailbox you bought (so invitations, reminders and replies are really sent) and your WhatsApp Business API (so clients get renewal and payment reminders on WhatsApp). Each has a <strong>Send test</strong> button, and every WhatsApp message is listed at the bottom with whether it went through.</p>
                     <h3>Settings</h3>
                     <ul>
                         <li><strong>General</strong> — currency, time zone, company details for invoices, invoice defaults, renewal reminder days.</li>

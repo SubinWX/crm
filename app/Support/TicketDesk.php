@@ -21,7 +21,7 @@ class TicketDesk
     {
         return User::query()->active()->whereNotNull('password')
             ->where(fn ($q) => $q->where('role', User::ROLE_SUPER_ADMIN)
-                ->orWhere(fn ($q) => $q->where('role', User::ROLE_STAFF)->whereJsonContains('permissions', 'support.manage')))
+                ->orWhere(fn ($q) => $q->whereIn('role', [User::ROLE_STAFF, User::ROLE_SUB_ADMIN])->whereJsonContains('permissions', 'support.manage')))
             ->get();
     }
 

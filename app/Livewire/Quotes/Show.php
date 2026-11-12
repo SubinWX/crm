@@ -176,6 +176,7 @@ class Show extends Component
                 $partial = ! $row['recurring'] && $amount < $row['net'];
                 $invoice->items()->create([
                     'quote_item_id' => $id,
+                    'hsn_sac' => setting('invoice_default_hsn') ?: null,
                     'description' => $row['name'].($row['recurring'] ? ' ('.Quote::FREQUENCIES[$row['frequency']].')' : ($partial ? ' — part payment' : '')),
                     'quantity' => 1, 'unit_price' => $amount, 'amount' => $amount, 'sort_order' => $order++,
                 ]);

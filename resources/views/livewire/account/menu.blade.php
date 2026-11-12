@@ -24,6 +24,10 @@
                     @click="open = false" wire:click="open('picture')">
                 <x-icon name="photo" class="size-5 text-stone-400" /> Change Picture
             </button>
+            <a href="{{ route('two-factor.setup') }}" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-50">
+                <x-icon name="check" class="size-5 text-stone-400" /> <span class="flex-1">Two-step login</span>
+                <span class="{{ $user->hasTwoFactor() ? 'badge-green' : 'badge-gray' }}">{{ $user->hasTwoFactor() ? 'On' : 'Off' }}</span>
+            </a>
         </div>
         <form method="POST" action="{{ route('logout') }}" class="border-t border-stone-200 p-4">
             @csrf

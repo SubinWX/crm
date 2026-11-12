@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Jobs\DeliverReminder;
 use App\Models\HostingRecord;
 use App\Models\Invoice;
+use App\Models\MessageLog;
 use App\Models\ReminderLog;
 use App\Models\Renewal;
 use App\Models\User;
+use App\Support\WhatsApp;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -37,7 +39,7 @@ class ReminderService
     {
         $today = ($today ?? today_local())->copy()->startOfDay();
         $recipients = User::activeSuperAdmins();
-        $stats = ['due' => 0, 'queued' => 0, 'requeued' => 0];
+        $stats = ['due' => 0, 'queued' => 0, 'requeued' => 0, 'whatsapp' => 0];
 
         foreach ($this->dueReminders($today) as [$event, $type, $id, $scheduled]) {
             $stats['due']++;
@@ -49,8 +51,63 @@ class ReminderService
         }
 
         $stats['requeued'] = $this->requeueStale();
+        $stats['whatsapp'] = $this->queueClientWhatsApp($today);
 
         return $stats;
+    }
+
+    /**
+     * WhatsApp reminders to clients (when switched on in Settings → Email & WhatsApp):
+     * hosting 7 days before renewal, other renewals at each configured stage, and unpaid
+     * invoices on the configured days around the due date. Each goes once per reminder date.
+     */
+    public function queueClientWhatsApp(Carbon $today): int
+    {
+        $queued = 0;
+        $count = function (?MessageLog $log) use (&$queued) {
+            $queued += $log ? 1 : 0;
+        };
+
+        if (WhatsApp::sends('hosting')) {
+            HostingRecord::query()->remindable()->with('client')
+                ->whereBetween('next_payment_date', [$today->toDateString(), $today->copy()->addDays(7)->toDateString()])->get()
+                ->each(fn (HostingRecord $r) => $count(WhatsApp::queue('hosting_due', 'hosting', $r->client, $r->client->phone1, [
+                    'client' => $r->client->name, 'item' => $r->domain ?: 'your website', 'date' => fmt_date($r->next_payment_date),
+                    'amount' => $r->renewal_amount !== null ? money($r->renewal_amount) : '—',
+                ], 'hosting', $r->id, self::hostingSchedule($r)[self::HOSTING_SEVEN_DAYS]->toDateString())));
+        }
+
+        if (WhatsApp::sends('renewal')) {
+            Renewal::query()->remindable()->with('client')
+                ->whereBetween('renewal_date', [$today->toDateString(), $today->copy()->addDays(366)->toDateString()])->get()
+                ->each(function (Renewal $r) use ($today, $count) {
+                    if ($stage = self::renewalStage($r, $today)) {
+                        $count(WhatsApp::queue('renewal_due', 'renewal', $r->client, $r->client->phone1, [
+                            'client' => $r->client->name, 'item' => $r->name, 'date' => fmt_date($r->renewal_date),
+                            'amount' => $r->amount !== null ? money($r->amount) : '—',
+                        ], 'renewal', $r->id, $stage['date']->toDateString()));
+                    }
+                });
+        }
+
+        if (WhatsApp::sends('invoice')) {
+            $days = WhatsApp::invoiceDays();
+            Invoice::query()->open()->with('client')->whereNotNull('due_date')
+                ->whereBetween('due_date', [$today->copy()->subDays(max(0, max($days)) + 3)->toDateString(), $today->copy()->addDays(max(0, -min($days)))->toDateString()])->get()
+                ->each(function (Invoice $i) use ($today, $days, $count) {
+                    // The latest reminder day that has been reached; a missed scheduler day catches up for 3 days, then lets go.
+                    $due = local_date($i->due_date);
+                    $reached = collect($days)->filter(fn ($d) => $today->gte($due->copy()->addDays($d)))->max();
+                    if ($reached === null || $i->balance <= 0 || $today->gt($due->copy()->addDays($reached + 3)) || $i->client->archived_at) {
+                        return;
+                    }
+                    $count(WhatsApp::queue('invoice_due', 'invoice', $i->client, $i->client->phone1, [
+                        'client' => $i->client->name, 'item' => $i->number, 'date' => fmt_date($i->due_date), 'amount' => money($i->balance, $i->currency),
+                    ], 'invoice', $i->id, $due->copy()->addDays($reached)->toDateString()));
+                });
+        }
+
+        return $queued;
     }
 
     /**

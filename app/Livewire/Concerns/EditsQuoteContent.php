@@ -63,7 +63,7 @@ trait EditsQuoteContent
         return [
             'sections' => ['array', 'max:40'],
             'sections.*.title' => ['required', 'string', 'max:255'],
-            'sections.*.body' => ['nullable', 'string', 'max:20000'],
+            'sections.*.body' => ['nullable', 'string', 'max:40000'],
             'sections.*.is_hidden' => ['boolean'],
             'items' => ['array', 'max:60'],
             'items.*.name' => ['required', 'string', 'max:255'],

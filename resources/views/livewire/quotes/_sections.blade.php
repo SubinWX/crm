@@ -18,7 +18,7 @@
                     <button type="button" class="btn-ghost btn-sm text-red-700" wire:click="removeSection({{ $index }})" wire:confirm="Remove this section?">Remove</button>
                 </div>
                 @error("sections.{$index}.title") <p class="field-error">{{ $message }}</p> @enderror
-                <textarea class="input mt-2" rows="{{ $section['is_hidden'] ? 2 : 5 }}" wire:model="sections.{{ $index }}.body" placeholder="Text for this section. Paste portfolio links on their own lines." aria-label="Section text"></textarea>
+                <x-editor class="mt-2" model="sections.{{ $index }}.body" :value="$section['body']" :min-height="$section['is_hidden'] ? '3rem' : '7rem'" placeholder="Text for this section. Use the toolbar for bullets, bold and links." label="Section text" />
                 @error("sections.{$index}.body") <p class="field-error">{{ $message }}</p> @enderror
             </div>
         @empty

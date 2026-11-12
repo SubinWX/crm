@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\RichTextCast;
 use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -22,7 +23,7 @@ class Lead extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['next_action_date' => 'date', 'converted_at' => 'datetime', 'estimated_value' => 'decimal:2'];
+    protected $casts = ['next_action_date' => 'date', 'converted_at' => 'datetime', 'estimated_value' => 'decimal:2', 'notes' => RichTextCast::class];
 
     public function source(): BelongsTo
     {

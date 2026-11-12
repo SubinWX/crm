@@ -195,7 +195,7 @@ class Form extends Component
             'form.recipient_email' => ['nullable', 'email', 'max:255'],
             'form.recipient_company' => ['nullable', 'string', 'max:255'],
             'form.recipient_address' => ['nullable', 'string', 'max:1000'],
-            'form.notes' => ['nullable', 'string', 'max:5000'],
+            'form.notes' => ['nullable', 'string', 'max:20000'],
         ] + $this->contentRules(), [], [
             'client_id' => 'client', 'lead_id' => 'lead', 'contact_id' => 'recipient', 'form.number' => 'quote number', 'form.title' => 'title',
             'form.issue_date' => 'issue date', 'form.expiry_date' => 'expiry date', 'form.follow_up_date' => 'follow-up date',

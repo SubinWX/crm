@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientFile;
 use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\JobApplication;
 use App\Models\Poster;
 use App\Models\User;
 use App\Support\ExpenseFilters;
@@ -83,7 +84,7 @@ class FileController extends Controller
     public function expensesCsv(Request $request)
     {
         $query = ExpenseFilters::apply(
-            Expense::query()->with(['category', 'method', 'client']),
+            Expense::query()->with(['category', 'method', 'client', 'link']),
             $request->only(['search', 'category', 'client', 'method', 'from', 'to', 'recurring'])
         )->orderBy('expense_date')->orderBy('id');
 
@@ -102,7 +103,7 @@ class FileController extends Controller
                         $e->category?->name,
                         self::csvSafe($e->payee),
                         $e->method?->name,
-                        self::csvSafe($e->client?->name ?? 'General overhead'),
+                        self::csvSafe($e->linkedToLabel()),
                         $e->is_recurring ? ($e->recurring_frequency ?: 'yes') : 'no',
                         self::csvSafe($e->description),
                     ]);
@@ -110,6 +111,35 @@ class FileController extends Controller
             });
             fclose($out);
         }, 'expenses-'.today_local()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** A job applicant's resume. The route is limited to people who manage careers. */
+    public function resume(JobApplication $application)
+    {
+        $extension = strtolower(pathinfo($application->resume_name, PATHINFO_EXTENSION)) ?: 'pdf';
+
+        return $this->download($application->resume_path, str($application->name)->slug().'-resume.'.$extension);
+    }
+
+    /**
+     * Shows a PDF resume in the browser tab. Anything that is not really a PDF (Word files,
+     * or a file only named .pdf) is downloaded instead, so the browser never renders it.
+     */
+    public function resumeView(JobApplication $application)
+    {
+        $path = $application->resume_path;
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        if (! $application->resumeIsPdf() || Storage::disk('local')->mimeType($path) !== 'application/pdf') {
+            return $this->resume($application);
+        }
+
+        return response()->file(Storage::disk('local')->path($path), [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.str($application->name)->slug().'-resume.pdf"',
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /** Stop spreadsheet apps treating user text as a formula. */

@@ -3,6 +3,7 @@
 namespace App\Livewire\Invoices;
 
 use App\Models\Invoice;
+use App\Support\WhatsApp;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -38,6 +39,27 @@ class Show extends Component
         $this->invoice->markSent(local_date($this->sentDate)->setTimeFrom(now(crm_tz()))->utc()->toDateTimeString());
         activity('sent', "Invoice {$this->invoice->number} marked as sent", $this->invoice);
         $this->dispatch('toast', message: 'Invoice marked as sent. It now counts towards the client’s pending amount.');
+    }
+
+    /** Sends the payment reminder to the client's WhatsApp now, whatever the automatic schedule says. */
+    public function sendWhatsApp(): void
+    {
+        abort_unless(in_array($this->invoice->status, Invoice::OPEN_STATUSES, true), 422);
+        if (! WhatsApp::enabled()) {
+            $this->dispatch('toast', message: 'WhatsApp is not connected yet. A Super Admin can set it up in Settings → Email & WhatsApp.');
+
+            return;
+        }
+        $client = $this->invoice->client;
+        $log = WhatsApp::queue('manual', 'invoice', $client, $client->phone1, [
+            'client' => $client->name, 'item' => $this->invoice->number, 'date' => fmt_date($this->invoice->due_date, 'receipt'),
+            'amount' => money($this->invoice->balance, $this->invoice->currency),
+        ], 'invoice', $this->invoice->id);
+
+        activity('whatsapp_reminder', "WhatsApp payment reminder for {$this->invoice->number} ".($log?->status === 'skipped' ? 'not sent: no valid mobile number' : 'queued'), $this->invoice);
+        $this->dispatch('toast', message: $log?->status === 'skipped'
+            ? 'Not sent: this client has no valid mobile number saved as their primary phone.'
+            : 'WhatsApp reminder queued for '.$client->name.'.');
     }
 
     public function void(): void

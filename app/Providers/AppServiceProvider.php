@@ -8,6 +8,8 @@ use App\Models\Equipment;
 use App\Models\Expense;
 use App\Models\HostingRecord;
 use App\Models\Invoice;
+use App\Models\JobApplication;
+use App\Models\JobVacancy;
 use App\Models\Lead;
 use App\Models\Payment;
 use App\Models\PortalUser;
@@ -16,10 +18,12 @@ use App\Models\Project;
 use App\Models\Quote;
 use App\Models\QuoteTemplate;
 use App\Models\Renewal;
+use App\Models\Setting;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
 use App\Support\Branding;
+use App\Support\MailSettings;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -27,6 +31,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -56,6 +61,8 @@ class AppServiceProvider extends ServiceProvider
             'renewal' => Renewal::class,
             'support_ticket' => SupportTicket::class,
             'portal_user' => PortalUser::class,
+            'job_vacancy' => JobVacancy::class,
+            'job_application' => JobApplication::class,
         ]);
 
         // The app name set in Settings → Branding also names outgoing emails.
@@ -63,9 +70,17 @@ class AppServiceProvider extends ServiceProvider
             try {
                 $name = Branding::name();
                 config(['app.name' => $name, 'mail.from.name' => $name]);
+                // The email server chosen in Settings → Email & WhatsApp, if one is connected.
+                MailSettings::apply();
             } catch (\Throwable) {
                 // settings table not migrated yet
             }
+        });
+
+        // Queue workers run for a long time: re-read the email server before each job so a change takes effect at once.
+        Queue::before(function () {
+            Setting::flush();
+            MailSettings::apply();
         });
 
         $this->registerGates();
@@ -80,7 +95,8 @@ class AppServiceProvider extends ServiceProvider
         // Super Admin only: users, settings, activity log and everything financial
         // (invoices, payments, expenses and their attachments).
         Gate::define('admin', fn (User $user) => $user->isSuperAdmin());
-        Gate::define('finance', fn (User $user) => $user->isSuperAdmin());
+        // Finance: Super Admins, and anyone given "Invoices, payments, expenses and GST reports".
+        Gate::define('finance', fn (User $user) => $user->hasPermission('finance.manage'));
 
         foreach (array_keys(User::STAFF_PERMISSIONS) as $permission) {
             Gate::define($permission, fn (User $user) => $user->hasPermission($permission));

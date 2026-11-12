@@ -5,6 +5,8 @@ namespace App\Support;
 use App\Models\Client;
 use App\Models\HostingRecord;
 use App\Models\Invoice;
+use App\Models\JobApplication;
+use App\Models\JobVacancy;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Models\Quote;
@@ -32,6 +34,7 @@ class CalendarEvents
         'task' => ['Tasks & follow-ups', 'bg-stone-200 text-stone-800', 'bg-stone-500', 'Task'],
         'project' => ['Project deadlines', 'bg-teal-100 text-teal-800', 'bg-teal-500', 'Project'],
         'lead' => ['Lead next actions', 'bg-orange-100 text-orange-800', 'bg-orange-500', 'Lead action'],
+        'careers' => ['Interviews & job closing dates', 'bg-rose-100 text-rose-800', 'bg-rose-500', 'Careers'],
     ];
 
     /** The kinds of event this person may see. @return string[] */
@@ -50,6 +53,7 @@ class CalendarEvents
             'task' => Gate::forUser($user)->allows('tasks.view'),
             'project' => $team && $clients,
             'lead' => Gate::forUser($user)->allows('sales.manage'),
+            'careers' => Gate::forUser($user)->allows('careers.manage'),
         ]));
     }
 
@@ -128,6 +132,18 @@ class CalendarEvents
         if ($has('lead')) {
             Lead::query()->open()->whereBetween('next_action_date', [$start, $end])->get()
                 ->each(fn (Lead $l) => $add('lead', $l->next_action_date, $l->next_action ?: 'Follow up', $l->name, route('leads.show', $l), $l->next_action_date->toDateString() < $today));
+        }
+
+        if ($has('careers')) {
+            // Interview times are stored in UTC; the calendar day is the one in the business time zone.
+            JobApplication::query()->whereNotIn('status', ['rejected'])
+                ->whereBetween('interview_at', [$from->copy()->startOfDay()->utc(), $to->copy()->endOfDay()->utc()])->get()
+                ->each(function (JobApplication $a) use ($add) {
+                    $when = $a->interview_at->timezone(crm_tz());
+                    $add('careers', $when->toDateString(), 'Interview: '.$a->name, $a->vacancy_title.' · '.$when->format('g:i A'), route('careers.applications', ['open' => $a->id]));
+                });
+            JobVacancy::query()->where('status', 'open')->whereBetween('closes_on', [$start, $end])->get()
+                ->each(fn (JobVacancy $v) => $add('careers', $v->closes_on, 'Vacancy closes: '.$v->title, 'Applications stop after this date', route('careers.vacancies'), $v->closes_on->toDateString() < $today));
         }
 
         $order = array_flip(array_keys(self::TYPES));

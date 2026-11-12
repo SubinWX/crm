@@ -21,8 +21,20 @@ class Lookup extends Model
         'server_provider' => 'Server providers / plans',
         'payment_method' => 'Payment methods',
         'expense_category' => 'Expense categories',
+        'expense_link' => 'Expense “Linked to” options',
         'equipment_type' => 'Equipment types',
+        'job_department' => 'Job departments (Careers)',
     ];
+
+    protected static function booted(): void
+    {
+        // Vacancies store the department by name, so renaming one in Settings renames it on them too.
+        static::updated(function (self $lookup) {
+            if ($lookup->type === 'job_department' && $lookup->wasChanged('name')) {
+                JobVacancy::where('department', $lookup->getOriginal('name'))->update(['department' => $lookup->name]);
+            }
+        });
+    }
 
     public function scopeOfType(Builder $query, string $type): Builder
     {
@@ -55,7 +67,9 @@ class Lookup extends Model
             'server_provider' => HostingRecord::where('server_provider_id', $this->id)->count(),
             'payment_method' => Payment::where('payment_method_id', $this->id)->count() + Expense::where('payment_method_id', $this->id)->count(),
             'expense_category' => Expense::where('category_id', $this->id)->count(),
+            'expense_link' => Expense::where('link_id', $this->id)->count(),
             'equipment_type' => Equipment::where('type_id', $this->id)->count(),
+            'job_department' => JobVacancy::where('department', $this->name)->count(),
             default => 0,
         };
     }

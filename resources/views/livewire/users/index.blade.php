@@ -43,6 +43,19 @@
         </div>
     @endif
 
+    @php $requireTwoFactor = setting('require_two_factor') === '1'; @endphp
+    <div class="card mb-5 flex flex-wrap items-center justify-between gap-3 p-4">
+        <div class="min-w-64 flex-1 text-sm">
+            <p class="font-semibold text-stone-900">Two-step login for Super Admins <span class="{{ $requireTwoFactor ? 'badge-green' : 'badge-gray' }} ml-1">{{ $requireTwoFactor ? 'Required' : 'Optional' }}</span></p>
+            <p class="text-stone-600">After the password, signing in asks for a code from an authenticator app. Anyone can switch it on for their own account from the top-right menu; when required, every Super Admin must set it up before they can use the CRM.</p>
+        </div>
+        @if ($requireTwoFactor)
+            <button type="button" class="btn-secondary" wire:click="setRequireTwoFactor(false)" wire:confirm="Make two-step login optional for Super Admins?">Make optional</button>
+        @else
+            <button type="button" class="btn-primary" wire:click="setRequireTwoFactor(true)" wire:confirm="Require two-step login for every Super Admin? Those who have not set it up will be asked to at their next page.">Require it</button>
+        @endif
+    </div>
+
     <div class="mb-5 flex gap-6 border-b border-stone-200" role="tablist">
         @foreach (['super_admin' => 'Super Admins', 'sub_admin' => 'Sub Admins', 'staff' => 'Staff'] as $key => $label)
             <button type="button" role="tab" @class(['tab', 'tab-active' => $role === $key]) wire:click="$set('role', '{{ $key }}')">{{ $label }} <span class="text-stone-400">({{ $counts[$key] }})</span></button>
@@ -52,7 +65,7 @@
     <div class="card">
         <div class="table-wrap">
             <table class="table">
-                <thead><tr><th>Name</th><th>Email</th><th>Primary phone</th><th>Alternate phone</th>@if ($role === 'staff')<th>Permissions</th>@endif<th>Equipment</th><th>Status</th><th>Last sign-in</th><th class="text-right">Actions</th></tr></thead>
+                <thead><tr><th>Name</th><th>Email</th><th>Primary phone</th><th>Alternate phone</th>@if ($role !== 'super_admin')<th>Access</th>@endif<th>Equipment</th><th>Status</th><th>Last sign-in</th><th class="text-right">Actions</th></tr></thead>
                 <tbody>
                     @forelse ($users as $user)
                         <tr wire:key="user-{{ $user->id }}">
@@ -65,9 +78,10 @@
                             <td>{{ $user->email }}</td>
                             <td>{{ $user->phone ?: '—' }}</td>
                             <td>{{ $user->alt_phone ?: '—' }}</td>
-                            @if ($role === 'staff')
+                            @if ($role !== 'super_admin')
                                 <td><div class="flex max-w-72 flex-wrap gap-1">
-                                    @forelse ($user->permissions ?? [] as $p) <span class="badge-gray">{{ $p }}</span> @empty <span class="text-stone-400">None</span> @endforelse
+                                    @if ($role === 'sub_admin') <span class="badge-gray">Own clients</span> @endif
+                                    @forelse (array_intersect(\App\Models\User::grantable($role), $user->permissions ?? []) as $p) <span class="badge-gray" title="{{ \App\Models\User::STAFF_PERMISSIONS[$p] }}">{{ str($p)->replace('.', ': ')->ucfirst() }}</span> @empty @if ($role === 'staff') <span class="text-stone-400">None</span> @endif @endforelse
                                 </div></td>
                             @endif
                             <td><a class="link" href="{{ route('equipment.index', ['user' => $user->id]) }}">{{ $user->equipment_count }} {{ str('item')->plural($user->equipment_count) }}</a></td>
@@ -75,6 +89,7 @@
                                 @if (! $user->is_active) <span class="badge-gray">Inactive</span>
                                 @elseif ($user->hasPendingInvitation()) <span class="badge-amber">Invitation pending</span>
                                 @else <span class="badge-green">Active</span> @endif
+                                @if ($user->hasTwoFactor()) <span class="badge-blue" title="Two-step login is on">2-step</span> @endif
                             </td>
                             <td class="whitespace-nowrap">{{ fmt_datetime($user->last_login_at, 'Never') }}</td>
                             <td class="text-right whitespace-nowrap">
@@ -82,6 +97,9 @@
                                     <button type="button" class="btn-ghost btn-sm" wire:click="resend({{ $user->id }})">Resend invite</button>
                                 @endif
                                 <button type="button" class="btn-ghost btn-sm" wire:click="edit({{ $user->id }})">Edit</button>
+                                @if ($user->hasTwoFactor() && $user->id !== auth()->id())
+                                    <button type="button" class="btn-ghost btn-sm" wire:click="resetTwoFactor({{ $user->id }})" wire:confirm="Reset two-step login for {{ $user->name }}? Use this when they have lost their phone. They sign in with the password only until they set it up again.">Reset 2-step</button>
+                                @endif
                                 @if ($user->id !== auth()->id())
                                     <button type="button" class="btn-ghost btn-sm" wire:click="toggleActive({{ $user->id }})"
                                             wire:confirm="{{ $user->is_active ? 'Deactivate '.$user->name.'? They will be signed out and lose access. Their records stay intact.' : 'Reactivate '.$user->name.'?' }}">
@@ -91,7 +109,7 @@
                             </td>
                         </tr>
                     @empty
-                        <x-empty :colspan="$role === 'staff' ? 9 : 8">No {{ \App\Models\User::ROLES[$role] ?? '' }} accounts yet.</x-empty>
+                        <x-empty :colspan="$role !== 'super_admin' ? 9 : 8">No {{ \App\Models\User::ROLES[$role] ?? '' }} accounts yet.</x-empty>
                     @endforelse
                 </tbody>
             </table>
@@ -140,18 +158,38 @@
                 <x-field label="Active status" name="form.is_active">
                     <label class="flex items-center gap-2 py-2 text-sm"><input type="checkbox" class="rounded border-stone-300" wire:model="form.is_active"> Account is active</label>
                 </x-field>
-                @if ($form['role'] === 'staff')
-                    <x-field label="Staff permissions" name="form.permissions" class="md:col-span-2" hint="Finance, users and settings are always Super Admin only.">
-                        <div class="space-y-1.5">
-                            @foreach (\App\Models\User::STAFF_PERMISSIONS as $key => $label)
-                                <label class="flex items-center gap-2 text-sm"><input type="checkbox" class="rounded border-stone-300" value="{{ $key }}" wire:model="form.permissions"> {{ $label }}</label>
+                @php $grantable = \App\Models\User::grantable($form['role']); @endphp
+                @if ($form['role'] === 'super_admin')
+                    <p class="rounded-md bg-stone-50 p-3 text-sm text-stone-600 md:col-span-2">Super Admins have access to everything: users, settings, finances and all records. They receive every internal notification, so there is nothing to tick here.</p>
+                @else
+                    <div class="md:col-span-2" wire:key="access-{{ $form['role'] }}">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="label mb-0">Access: what this person can use</p>
+                            <span class="flex gap-3 text-xs">
+                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode($grantable) }})">Tick all</button>
+                                <button type="button" class="link" wire:click="$set('form.permissions', [])">Clear all</button>
+                            </span>
+                        </div>
+                        @if ($form['role'] === 'sub_admin')
+                            <p class="mt-1 rounded-md bg-stone-50 p-3 text-sm text-stone-600">Sub Admins always can add clients, see and edit only the clients they added, and add support portal users. You can also open the areas below for them. <strong class="text-stone-800">Those areas show every record in them, not only this person’s clients.</strong></p>
+                        @endif
+                        <div class="mt-2 grid gap-x-6 gap-y-3 rounded-md border border-stone-200 p-3 sm:grid-cols-2">
+                            @foreach (\App\Models\User::PERMISSION_GROUPS as $group => $keys)
+                                @if ($shown = array_values(array_intersect($keys, $grantable)))
+                                    <fieldset>
+                                        <legend class="text-xs font-semibold tracking-wide text-stone-500 uppercase">{{ $group }}</legend>
+                                        <div class="mt-1 space-y-1.5">
+                                            @foreach ($shown as $key)
+                                                <label class="flex items-start gap-2 text-sm"><input type="checkbox" class="mt-0.5 rounded border-stone-300" value="{{ $key }}" wire:model="form.permissions"> <span>{{ \App\Models\User::STAFF_PERMISSIONS[$key] }}</span></label>
+                                            @endforeach
+                                        </div>
+                                    </fieldset>
+                                @endif
                             @endforeach
                         </div>
-                    </x-field>
-                @elseif ($form['role'] === 'sub_admin')
-                    <p class="rounded-md bg-stone-50 p-3 text-sm text-stone-600 md:col-span-2">Sub Admins have minimal access: they can add clients, and see and edit only the clients they added, and add support portal users. No finance, tasks, posters, other clients, users or settings.</p>
-                @else
-                    <p class="rounded-md bg-stone-50 p-3 text-sm text-stone-600 md:col-span-2">Super Admins manage users, settings, finances and all records, and receive every internal notification.</p>
+                        <p class="mt-1 text-xs text-stone-500">{{ $form['role'] === 'staff' ? 'Tasks, posters, the calendar and their own equipment are visible to all staff.' : '' }} Users, settings and the activity log are always Super Admin only.</p>
+                        @error('form.permissions') <p class="field-error">{{ $message }}</p> @enderror
+                    </div>
                 @endif
                 <div class="flex justify-end gap-2 md:col-span-2">
                     <button type="button" class="btn-secondary" wire:click="closeModal">Cancel</button>

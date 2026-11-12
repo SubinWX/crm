@@ -20,6 +20,9 @@ class Setting extends Model
         'company_email' => '',
         'company_phone' => '',
         'company_tax_id' => '',
+        // GST state code of the company. Setting it switches invoices to GST mode (CGST/SGST/IGST).
+        'company_state' => '',
+        'invoice_default_hsn' => '',
         'currency' => 'INR',
         'timezone' => 'Asia/Kolkata',
         'invoice_prefix' => 'INV-',

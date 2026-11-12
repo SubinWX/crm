@@ -16,7 +16,7 @@ trait LogsActivity
         static::created(fn ($model) => $model->writeActivity('created'));
 
         static::updated(function ($model) {
-            $ignored = array_merge(['updated_at', 'remember_token', 'password', 'last_login_at', 'invitation_token', 'date_of_birth'], $model->activityIgnored ?? []);
+            $ignored = array_merge(['updated_at', 'remember_token', 'password', 'last_login_at', 'invitation_token', 'date_of_birth', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at'], $model->activityIgnored ?? []);
             $changed = array_values(array_diff(array_keys($model->getChanges()), $ignored));
             if ($changed !== []) {
                 $model->writeActivity('updated', ['changed' => $changed]);

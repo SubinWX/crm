@@ -28,6 +28,7 @@
                 <select class="input" wire:model.live="client" aria-label="Client or overhead">
                     <option value="">Clients &amp; overhead</option>
                     <option value="overhead">General overhead only</option>
+                    @foreach ($allLinks as $l) <option value="link:{{ $l->id }}">{{ $l->name }} only</option> @endforeach
                     @foreach ($clients as $c) <option value="{{ $c->id }}">{{ $c->name }}</option> @endforeach
                 </select>
                 <label class="flex items-center gap-2 text-xs font-semibold text-stone-500 uppercase">From <input type="date" class="input normal-case" wire:model.live="from"></label>
@@ -50,7 +51,7 @@
                                     @if ($expense->description) <p class="line-clamp-1 text-xs text-stone-500">{{ $expense->description }}</p> @endif
                                 </td>
                                 <td>{{ $expense->category?->name ?? '—' }}</td>
-                                <td>{{ $expense->client?->name ?? 'General overhead' }}</td>
+                                <td>{{ $expense->linkedToLabel() }}</td>
                                 <td>{{ $expense->method?->name ?? '—' }}</td>
                                 @if ($view === 'recurring') <td>{{ \App\Models\Expense::FREQUENCIES[$expense->recurring_frequency] ?? '—' }}</td> @endif
                                 <td class="num">{{ money($expense->amount) }}</td>
@@ -129,10 +130,15 @@
                         @foreach ($methods as $m) <option value="{{ $m->id }}">{{ $m->name }}{{ $m->is_active ? '' : ' (inactive)' }}</option> @endforeach
                     </select>
                 </x-field>
-                <x-field label="Linked to" name="form.client_id">
-                    <select class="input" wire:model="form.client_id">
+                <x-field label="Linked to" name="form.linked_to">
+                    <select class="input" wire:model="form.linked_to">
                         <option value="">General overhead</option>
-                        @foreach ($clients as $c) <option value="{{ $c->id }}">{{ $c->name }}</option> @endforeach
+                        @foreach ($links as $l) <option value="link:{{ $l->id }}">{{ $l->name }}{{ $l->is_active ? '' : ' (inactive)' }}</option> @endforeach
+                        @if ($clients->isNotEmpty())
+                            <optgroup label="Clients">
+                                @foreach ($clients as $c) <option value="client:{{ $c->id }}">{{ $c->name }}</option> @endforeach
+                            </optgroup>
+                        @endif
                     </select>
                 </x-field>
                 <x-field label="Description" name="form.description" class="md:col-span-2"><textarea class="input" rows="2" wire:model="form.description"></textarea></x-field>

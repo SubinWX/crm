@@ -59,6 +59,9 @@
                                         <div><button type="button" class="btn-secondary btn-sm" wire:click="startRenewal({{ $record->id }})">Record Renewal</button></div>
                                     @endif
                                 @endcan
+                                @if ($record->next_payment_date && $record->client)
+                                    <x-whatsapp-reminder :client="$record->client" kind="hosting" send="sendWhatsApp({{ $record->id }})" :values="['item' => $record->domain ?: 'your website', 'date' => fmt_date($record->next_payment_date), 'amount' => $record->renewal_amount !== null ? money($record->renewal_amount) : '—']" />
+                                @endif
                                 <button type="button" class="btn-ghost btn-sm" wire:click="toggle({{ $record->id }})" aria-expanded="{{ $expandedId === $record->id ? "true" : "false" }}">History</button>
                                 @if ($this->canEdit())
                                     <button type="button" class="btn-ghost btn-sm" wire:click="edit({{ $record->id }})">Edit</button>

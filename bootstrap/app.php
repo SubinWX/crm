@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Middleware\EnsurePortalEmailIsVerified;
 use App\Http\Middleware\EnsurePortalUserIsActive;
+use App\Http\Middleware\EnsureTwoFactorSetUp;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['active' => EnsureUserIsActive::class, 'portal.active' => EnsurePortalUserIsActive::class, 'portal.verified' => EnsurePortalEmailIsVerified::class]);
+        $middleware->alias(['two-factor.setup' => EnsureTwoFactorSetUp::class, 'active' => EnsureUserIsActive::class, 'portal.active' => EnsurePortalUserIsActive::class, 'portal.verified' => EnsurePortalEmailIsVerified::class]);
         // Lets "Change Password" sign the account out on other devices.
         $middleware->authenticateSessions();
         // The support portal (/support/…) has its own sign-in page and home.

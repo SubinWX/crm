@@ -102,7 +102,7 @@
                 @if ($form['stage'] === 'lost')
                     <x-field label="Reason lost" name="form.lost_reason" class="md:col-span-2 lg:col-span-3"><input class="input" type="text" wire:model="form.lost_reason"></x-field>
                 @endif
-                <x-field label="Notes" name="form.notes" class="md:col-span-2 lg:col-span-3"><textarea class="input" rows="3" wire:model="form.notes"></textarea></x-field>
+                <x-field label="Notes" name="form.notes" class="md:col-span-2 lg:col-span-3"><x-editor model="form.notes" :value="$form['notes']" min-height="5rem" label="Notes" /></x-field>
                 <div class="flex justify-end gap-2 md:col-span-2 lg:col-span-3">
                     <button type="button" class="btn-secondary" wire:click="closeModal">Cancel</button>
                     <button type="submit" class="btn-primary">Save lead</button>

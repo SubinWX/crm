@@ -32,7 +32,7 @@
                     <div class="sm:col-span-2 xl:col-span-1"><dt class="label">Services requested</dt><dd class="mt-1 flex flex-wrap gap-1">@forelse ($lead->services as $service) <span class="badge-gray">{{ $service->name }}</span> @empty — @endforelse</dd></div>
                     <div class="sm:col-span-2 xl:col-span-1"><dt class="label">Next action</dt><dd @class(['font-semibold text-red-700' => $lead->next_action_date && days_until($lead->next_action_date) <= 0])>{{ $lead->next_action ? $lead->next_action.' · '.fmt_date($lead->next_action_date) : '—' }}</dd></div>
                     @if ($lead->lost_reason) <div class="sm:col-span-2 xl:col-span-1"><dt class="label">Reason lost</dt><dd>{{ $lead->lost_reason }}</dd></div> @endif
-                    <div class="sm:col-span-2 xl:col-span-1"><dt class="label">Notes</dt><dd class="whitespace-pre-line text-stone-900">{{ $lead->notes ?: '—' }}</dd></div>
+                    <div class="sm:col-span-2 xl:col-span-1"><dt class="label">Notes</dt><dd class="rich text-stone-900">{{ $lead->notes ? rich($lead->notes) : '—' }}</dd></div>
                 </dl>
             </section>
 

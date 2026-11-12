@@ -159,6 +159,44 @@
             </section>
         @endif
 
+        @if ($canCareers)
+            {{-- Careers: job applications by status --}}
+            <section class="card">
+                <div class="card-header"><h2 class="card-title">Careers: applications by status</h2><a href="{{ route('careers.manage') }}" class="link text-xs">Careers overview</a></div>
+                <div class="flex flex-wrap items-center gap-5 p-4">
+                    <div class="relative size-36 shrink-0">
+                        <svg viewBox="0 0 42 42" class="size-36 -rotate-90" role="img"
+                             aria-label="Job applications by status: {{ $careers['total'] ? $careers['slices']->where('count', '>', 0)->map(fn ($s) => $s['label'].' '.$s['count'])->implode(', ') : 'none yet' }}">
+                            <circle cx="21" cy="21" r="15.9155" fill="none" stroke="#e7e5e4" stroke-width="6" />
+                            @foreach ($careers['slices']->where('count', '>', 0) as $slice)
+                                <circle cx="21" cy="21" r="15.9155" fill="none" stroke="{{ $slice['color'] }}" stroke-width="6"
+                                        stroke-dasharray="{{ max(0, $slice['percent'] - ($careers['slices']->where('count', '>', 0)->count() > 1 ? 0.6 : 0)) }} 100" stroke-dashoffset="-{{ $slice['offset'] }}"><title>{{ $slice['label'] }}: {{ $slice['count'] }} ({{ $slice['percent'] }}%)</title></circle>
+                            @endforeach
+                        </svg>
+                        <div class="absolute inset-0 grid place-items-center text-center leading-tight">
+                            <span><span class="block text-2xl font-semibold tabular-nums text-stone-900">{{ $careers['total'] }}</span><span class="block text-[11px] text-stone-500">{{ $careers['total'] === 1 ? 'application' : 'applications' }}</span></span>
+                        </div>
+                    </div>
+                    <ul class="min-w-40 flex-1 space-y-1.5 text-sm">
+                        @foreach ($careers['slices'] as $slice)
+                            <li>
+                                <a href="{{ route('careers.applications', ['status' => $slice['status']]) }}" class="flex items-center gap-2 rounded px-1 hover:bg-stone-50">
+                                    <span class="size-2.5 shrink-0 rounded-sm" style="background: {{ $slice['color'] }}"></span>
+                                    <span class="flex-1 text-stone-700">{{ $slice['label'] }}</span>
+                                    <span class="font-medium tabular-nums text-stone-900">{{ $slice['count'] }}</span>
+                                    <span class="w-10 text-right text-xs tabular-nums text-stone-500">{{ $careers['total'] ? round($slice['percent']).'%' : '—' }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+                <div class="grid grid-cols-2 divide-x divide-stone-200 border-t border-stone-200 text-center text-sm">
+                    <a href="{{ route('careers.vacancies') }}" class="px-3 py-2.5 hover:bg-stone-50"><span class="block text-lg font-semibold tabular-nums text-stone-900">{{ $careers['openVacancies'] }}</span><span class="text-xs text-stone-500">Open vacancies</span></a>
+                    <a href="{{ route('careers.applications') }}" class="px-3 py-2.5 hover:bg-stone-50"><span class="block text-lg font-semibold tabular-nums text-stone-900">{{ $careers['thisMonth'] }}</span><span class="text-xs text-stone-500">Applications this month</span></a>
+                </div>
+            </section>
+        @endif
+
         <section @class(['card', 'xl:col-span-2' => ! $canFinance])>
             <div class="card-header"><h2 class="card-title">Overdue tasks &amp; follow-ups</h2><a href="{{ route('tasks.index', ['status' => 'overdue']) }}" class="link text-xs">View all</a></div>
             @forelse ($tasksOverdue as $task)

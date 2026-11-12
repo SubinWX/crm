@@ -5,6 +5,9 @@
         <nav class="card h-fit p-2 text-sm" aria-label="Settings sections">
             <button type="button" wire:click="setTab('general')" @class(['block w-full cursor-pointer rounded-md px-3 py-2 text-left', 'bg-brand-50 font-semibold text-brand-800' => $tab === 'general', 'text-stone-700 hover:bg-stone-50' => $tab !== 'general'])>General</button>
             <button type="button" wire:click="setTab('branding')" @class(['block w-full cursor-pointer rounded-md px-3 py-2 text-left', 'bg-brand-50 font-semibold text-brand-800' => $tab === 'branding', 'text-stone-700 hover:bg-stone-50' => $tab !== 'branding'])>Branding</button>
+            <a href="{{ route('settings.messaging') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">Email &amp; WhatsApp →</a>
+            <a href="{{ route('settings.public-pages') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">Public Pages →</a>
+            <a href="{{ route('settings.pdf') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">PDF Settings →</a>
             <a href="{{ route('quote-templates.index') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">Quote Templates →</a>
             <p class="px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">Dropdown values</p>
             @foreach (\App\Models\Lookup::TYPES as $key => $label)
@@ -134,7 +137,13 @@
                     <div class="card-header"><h2 class="card-title">Company (shown on invoices)</h2></div>
                     <div class="grid gap-4 p-4 md:grid-cols-2">
                         <x-field label="Company name" name="general.company_name" required><input class="input" type="text" wire:model="general.company_name"></x-field>
-                        <x-field label="Tax ID / GSTIN" name="general.company_tax_id"><input class="input" type="text" wire:model="general.company_tax_id"></x-field>
+                        <x-field label="GSTIN / Tax ID" name="general.company_tax_id"><input class="input uppercase" type="text" wire:model="general.company_tax_id" maxlength="40" placeholder="32ABCDE1234F1Z5"></x-field>
+                        <x-field label="State (for GST)" name="general.company_state" hint="Choosing your state switches invoices to GST: CGST + SGST for clients in the same state, IGST for other states. Leave empty if you do not charge GST.">
+                            <select class="input" wire:model="general.company_state">
+                                <option value="">Not using GST</option>
+                                @foreach (\App\Support\Gst::STATES as $code => $name) @if ($code !== \App\Support\Gst::FOREIGN) <option value="{{ $code }}">{{ $code }} · {{ $name }}</option> @endif @endforeach
+                            </select>
+                        </x-field>
                         <x-field label="Email" name="general.company_email"><input class="input" type="email" wire:model="general.company_email"></x-field>
                         <x-field label="Phone" name="general.company_phone"><input class="input" type="tel" wire:model="general.company_phone"></x-field>
                         <x-field label="Address" name="general.company_address" class="md:col-span-2"><textarea class="input" rows="2" wire:model="general.company_address"></textarea></x-field>
@@ -146,6 +155,7 @@
                         <x-field label="Number prefix" name="general.invoice_prefix"><input class="input" type="text" wire:model="general.invoice_prefix"></x-field>
                         <x-field label="Default tax rate (%)" name="general.invoice_default_tax_rate"><input class="input" type="number" step="0.01" min="0" wire:model="general.invoice_default_tax_rate"></x-field>
                         <x-field label="Payment terms (days)" name="general.invoice_due_days"><input class="input" type="number" min="0" wire:model="general.invoice_due_days"></x-field>
+                        <x-field label="Default HSN / SAC code" name="general.invoice_default_hsn" hint="Filled into new invoice lines. For example 998314 for IT design and development services."><input class="input" type="text" inputmode="numeric" maxlength="8" wire:model="general.invoice_default_hsn"></x-field>
                         <x-field label="Footer note" name="general.invoice_footer" class="md:col-span-3"><input class="input" type="text" wire:model="general.invoice_footer"></x-field>
                     </div>
                 </section>

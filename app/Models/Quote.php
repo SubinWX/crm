@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\RichTextCast;
 use App\Models\Concerns\LogsActivity;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,7 +28,7 @@ class Quote extends Model
 
     protected $casts = [
         'issue_date' => 'date', 'expiry_date' => 'date', 'follow_up_date' => 'date', 'sent_at' => 'datetime', 'responded_at' => 'datetime',
-        'discount_percent' => 'decimal:2', 'tax_rate' => 'decimal:2', 'revision' => 'integer',
+        'discount_percent' => 'decimal:2', 'tax_rate' => 'decimal:2', 'revision' => 'integer', 'notes' => RichTextCast::class,
     ];
 
     public function client(): BelongsTo

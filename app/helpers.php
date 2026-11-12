@@ -3,8 +3,10 @@
 use App\Models\ActivityLog;
 use App\Models\Setting;
 use App\Support\Branding;
+use App\Support\RichText;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 
 if (! function_exists('setting')) {
     function setting(string $key, mixed $default = null): mixed
@@ -104,5 +106,21 @@ if (! function_exists('app_name')) {
     function app_name(): string
     {
         return Branding::name();
+    }
+}
+
+if (! function_exists('rich')) {
+    /** Safe HTML for text written with the editor field. Older plain text keeps its line breaks. */
+    function rich(?string $text, bool $autolink = false): HtmlString
+    {
+        return new HtmlString(RichText::render($text, $autolink));
+    }
+}
+
+if (! function_exists('plain_text')) {
+    /** Editor text without its formatting, for previews, exports and emails. */
+    function plain_text(?string $text): string
+    {
+        return RichText::plain($text);
     }
 }

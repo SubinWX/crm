@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Casts\RichTextCast;
 use App\Models\Concerns\LogsActivity;
+use App\Support\Gst;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,11 +33,24 @@ class Invoice extends Model
     protected $casts = [
         'invoice_date' => 'date', 'planned_send_date' => 'date', 'due_date' => 'date', 'sent_at' => 'datetime',
         'subtotal' => 'decimal:2', 'tax_rate' => 'decimal:2', 'tax_amount' => 'decimal:2',
-        'discount' => 'decimal:2', 'total' => 'decimal:2', 'amount_paid' => 'decimal:2',
+        'discount' => 'decimal:2', 'total' => 'decimal:2', 'amount_paid' => 'decimal:2', 'notes' => RichTextCast::class,
+        'cgst_amount' => 'decimal:2', 'sgst_amount' => 'decimal:2', 'igst_amount' => 'decimal:2',
     ];
 
     protected static function booted(): void
     {
+        // New invoices pick up the GST details in force at that moment: the company's state, and the
+        // client's GSTIN and state. Whoever creates the invoice (the form, or a quote) may set them first.
+        static::creating(function (Invoice $invoice) {
+            if (! Gst::enabled()) {
+                return;
+            }
+            $client = $invoice->client;
+            $invoice->supplier_state ??= Gst::companyState();
+            $invoice->client_gstin ??= Gst::validGstin($client?->tax_id) ? strtoupper(trim($client->tax_id)) : null;
+            $invoice->place_of_supply ??= $client?->state_code ?: Gst::stateFromGstin($client?->tax_id) ?: Gst::companyState();
+        });
+
         static::updated(function (Invoice $invoice) {
             if ($invoice->wasChanged(['planned_send_date', 'status'])) {
                 ReminderLog::query()
@@ -75,6 +90,31 @@ class Invoice extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** intra (CGST + SGST), inter (IGST) or none (not a GST invoice). */
+    public function gstKind(): string
+    {
+        return Gst::kind($this->supplier_state, $this->place_of_supply);
+    }
+
+    /** Value the tax is charged on. */
+    public function getTaxableValueAttribute(): float
+    {
+        return round((float) $this->subtotal - (float) $this->discount, 2);
+    }
+
+    /** The tax lines to print: one "Tax" line, or CGST + SGST, or IGST. @return array<string, float> */
+    public function taxLines(): array
+    {
+        $rate = (float) $this->tax_rate;
+        $half = rtrim(rtrim(number_format($rate / 2, 2), '0'), '.');
+
+        return match ($this->gstKind()) {
+            'intra' => ["CGST ({$half}%)" => (float) $this->cgst_amount, "SGST ({$half}%)" => (float) $this->sgst_amount],
+            'inter' => ["IGST ({$rate}%)" => (float) $this->igst_amount],
+            default => ["Tax ({$rate}%)" => (float) $this->tax_amount],
+        };
     }
 
     public function getBalanceAttribute(): float
@@ -140,10 +180,14 @@ class Invoice extends Model
         $subtotal = round((float) $this->items()->sum('amount'), 2);
         $discount = min((float) $this->discount, $subtotal);
         $tax = round(($subtotal - $discount) * ((float) $this->tax_rate) / 100, 2);
+        $split = Gst::split($tax, $this->supplier_state, $this->place_of_supply);
         $this->forceFill([
             'subtotal' => $subtotal,
             'discount' => $discount,
             'tax_amount' => $tax,
+            'cgst_amount' => $split['cgst'],
+            'sgst_amount' => $split['sgst'],
+            'igst_amount' => $split['igst'],
             'total' => round($subtotal - $discount + $tax, 2),
         ])->save();
     }

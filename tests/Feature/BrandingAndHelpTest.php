@@ -160,11 +160,11 @@ class BrandingAndHelpTest extends TestCase
 
         // Super Admin: every main menu with its sub-menu, plus the Help link.
         $this->actingAs($this->admin)->get(route('dashboard'))->assertOk()
-            ->assertSeeInOrder(['Dashboard', 'Clients &amp; Work', 'Sales', 'Support', 'Finance', 'Administration', 'Help &amp; Tutorial'], false)
+            ->assertSeeInOrder(['Dashboard', 'crm-nav-clients', 'All Clients', 'crm-nav-work', 'Projects &amp; Services', 'Sales', 'Support', 'Finance', 'Administration', 'Help &amp; Tutorial'], false)
             ->assertSee('aria-controls="crm-nav-finance"', false)->assertSee('Quotes &amp; Proposals', false);
 
         // Staff without sales or finance do not get those menus at all.
-        $this->actingAs($staff)->get(route('dashboard'))->assertOk()->assertSee('Clients &amp; Work', false)
+        $this->actingAs($staff)->get(route('dashboard'))->assertOk()->assertSee('crm-nav-work', false)
             ->assertDontSee('crm-nav-finance', false)->assertDontSee('crm-nav-sales', false)->assertDontSee('crm-nav-administration', false);
 
         // The help page explains only what the reader can use.

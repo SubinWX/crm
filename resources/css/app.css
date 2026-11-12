@@ -79,3 +79,35 @@
     .nav-link { @apply flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-stone-300 hover:bg-white/5 hover:text-white; }
     .nav-link-active { @apply bg-white/10 text-white; }
 }
+
+/*
+ * Formatted text: ".rich" styles what the editor produces, both inside the editor and wherever
+ * the saved text is shown. Tailwind removes list bullets and heading sizes by default.
+ */
+.rich { overflow-wrap: anywhere; line-height: 1.6; }
+.rich > * + * { margin-top: 0.5rem; }
+.rich ul { list-style: disc; padding-left: 1.25rem; }
+.rich ol { list-style: decimal; padding-left: 1.25rem; }
+.rich li + li { margin-top: 0.15rem; }
+.rich li > ul, .rich li > ol { margin-top: 0.15rem; }
+.rich h1, .rich h2, .rich h3 { font-size: 1.05em; font-weight: 600; color: var(--color-stone-900); }
+.rich strong, .rich b { font-weight: 600; color: var(--color-stone-900); }
+.rich a { color: var(--color-brand-700); text-decoration: underline; text-underline-offset: 2px; }
+.rich blockquote { border-left: 3px solid var(--color-stone-300); padding-left: 0.75rem; color: var(--color-stone-600); }
+.rich pre { white-space: pre-wrap; border-radius: 0.375rem; background: var(--color-stone-100); padding: 0.5rem 0.75rem; font-size: 0.85em; }
+
+/* The editor box itself, matched to the other form fields. */
+.rich-editor trix-toolbar { margin-bottom: 0.375rem; }
+.rich-editor trix-toolbar .trix-button-row { flex-wrap: wrap; gap: 0.25rem 0.5rem; }
+.rich-editor trix-toolbar .trix-button-group { margin-bottom: 0; border-color: var(--color-stone-300); border-radius: 0.375rem; background: #fff; }
+.rich-editor trix-toolbar .trix-button { border-bottom: 0; }
+.rich-editor trix-toolbar .trix-button:not(:first-child) { border-left-color: var(--color-stone-200); }
+.rich-editor trix-toolbar .trix-button.trix-active { background: var(--color-brand-50); }
+.rich-editor trix-toolbar .trix-button-group--file-tools,
+.rich-editor trix-toolbar .trix-button--icon-code { display: none; }
+.rich-editor trix-editor {
+    border: 1px solid var(--color-stone-300); border-radius: 0.375rem; background: #fff;
+    padding: 0.5rem 0.75rem; font-size: 0.875rem; color: var(--color-stone-900);
+}
+.rich-editor trix-editor:focus { border-color: var(--color-brand-500); outline: none; box-shadow: 0 0 0 2px var(--color-brand-100); }
+.rich-editor trix-editor:empty:not(:focus)::before { color: var(--color-stone-400); }

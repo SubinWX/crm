@@ -8,6 +8,7 @@ use App\Models\Lookup;
 use App\Models\Payment;
 use App\Models\User;
 use App\Notifications\ClientAdded;
+use App\Support\Gst;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
@@ -31,7 +32,7 @@ class Form extends Component
         'name' => '', 'contact_name' => '', 'email' => '', 'phone1' => '', 'phone2' => '', 'website' => '',
         'billing_address' => '', 'location' => '', 'industry_id' => '', 'join_date' => '', 'status' => 'active',
         'account_manager_id' => '', 'notes' => '', 'acquisition_source_id' => '', 'referrer_id' => '',
-        'tax_id' => '', 'preferred_channel' => '',
+        'tax_id' => '', 'state_code' => '', 'preferred_channel' => '',
     ];
 
     /** @var array<int> */
@@ -91,10 +92,11 @@ class Form extends Component
             'form.join_date' => ['nullable', 'date'],
             'form.status' => ['required', Rule::in(array_keys(Client::STATUSES))],
             'form.account_manager_id' => ['nullable', 'exists:users,id'],
-            'form.notes' => ['nullable', 'string', 'max:5000'],
+            'form.notes' => ['nullable', 'string', 'max:20000'],
             'form.acquisition_source_id' => $lookup('acquisition_source'),
             'form.referrer_id' => $lookup('referrer'),
             'form.tax_id' => ['nullable', 'string', 'max:40'],
+            'form.state_code' => ['nullable', Rule::in(array_keys(Gst::STATES))],
             'form.preferred_channel' => ['nullable', Rule::in(array_keys(Client::CHANNELS))],
             // Raster images only; SVG is rejected because it can carry scripts.
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4000,max_height=4000'],

@@ -6,6 +6,11 @@
         <a href="{{ route('invoices.pdf', ['invoice' => $invoice, 'inline' => 1]) }}" target="_blank" rel="noopener" class="btn-secondary">Preview PDF</a>
         <a href="{{ route('invoices.pdf', $invoice) }}" class="btn-secondary"><x-icon name="download" /> Download PDF</a>
         @if (in_array($invoice->status, \App\Models\Invoice::OPEN_STATUSES))
+            {{-- Opens WhatsApp with the reminder typed; once the WhatsApp API is connected it sends it for you instead. --}}
+            <x-whatsapp-reminder :client="$invoice->client" kind="invoice" label="WhatsApp reminder" send="sendWhatsApp" class="!px-3.5 !py-2 !text-sm"
+                :values="['item' => $invoice->number, 'date' => fmt_date($invoice->due_date, 'receipt'), 'amount' => money($invoice->balance, $invoice->currency)]" />
+        @endif
+        @if (in_array($invoice->status, \App\Models\Invoice::OPEN_STATUSES))
             <a href="{{ route('payments.create', ['client' => $invoice->client_id, 'invoice' => $invoice->id]) }}" class="btn-primary">Record Payment</a>
         @endif
     </x-page-header>
@@ -32,15 +37,19 @@
                     <div><dt class="label">Sent date</dt><dd>{{ $invoice->sent_at ? fmt_date($invoice->sent_at->timezone(crm_tz())) : '—' }}</dd></div>
                     <div><dt class="label">Currency</dt><dd>{{ $invoice->currency }}</dd></div>
                     <div><dt class="label">Created by</dt><dd>{{ $invoice->creator?->name ?? '—' }}</dd></div>
+                    @if ($invoice->gstKind() !== 'none')
+                        <div><dt class="label">Place of supply</dt><dd>{{ \App\Support\Gst::stateName($invoice->place_of_supply) }}</dd></div>
+                        <div><dt class="label">Client GSTIN</dt><dd class="font-mono">{{ $invoice->client_gstin ?: 'Unregistered (B2C)' }}</dd></div>
+                    @endif
                     @if ($invoice->recipient_name) <div class="sm:col-span-2"><dt class="label">Recipient</dt><dd>{{ $invoice->recipient_name }} <span class="text-stone-500">{{ $invoice->recipient_email }}</span></dd></div> @endif
                     @if ($invoice->quote) <div class="sm:col-span-2"><dt class="label">Raised from quote</dt><dd>@can('sales.manage')<a class="link font-mono" href="{{ route('quotes.show', $invoice->quote) }}">{{ $invoice->quote->number }}</a>@else<span class="font-mono">{{ $invoice->quote->number }}</span>@endcan · revision {{ $invoice->quote_revision }} · <a class="link" href="{{ route('quotes.revision', [$invoice->quote, $invoice->quote_revision]) }}">issued PDF</a></dd></div> @endif
                 </dl>
                 <div class="table-wrap">
                     <table class="table">
-                        <thead><tr><th class="w-full">Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead>
+                        <thead><tr><th class="w-full">Description</th>@if ($invoice->gstKind() !== 'none')<th>HSN / SAC</th>@endif<th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead>
                         <tbody>
                             @foreach ($invoice->items as $item)
-                                <tr><td>{{ $item->description }}</td><td class="num">{{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}</td><td class="num">{{ money($item->unit_price, $invoice->currency) }}</td><td class="num">{{ money($item->amount, $invoice->currency) }}</td></tr>
+                                <tr><td>{{ $item->description }}</td>@if ($invoice->gstKind() !== 'none')<td>{{ $item->hsn_sac ?: '—' }}</td>@endif<td class="num">{{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}</td><td class="num">{{ money($item->unit_price, $invoice->currency) }}</td><td class="num">{{ money($item->amount, $invoice->currency) }}</td></tr>
                             @endforeach
                         </tbody>
                     </table>
@@ -49,13 +58,15 @@
                     <dl class="w-72 space-y-1.5 text-sm">
                         <div class="flex justify-between"><dt class="text-stone-600">Subtotal</dt><dd class="tabular-nums">{{ money($invoice->subtotal, $invoice->currency) }}</dd></div>
                         @if ((float) $invoice->discount > 0) <div class="flex justify-between"><dt class="text-stone-600">Discount</dt><dd class="tabular-nums">− {{ money($invoice->discount, $invoice->currency) }}</dd></div> @endif
-                        <div class="flex justify-between"><dt class="text-stone-600">Tax ({{ (float) $invoice->tax_rate }}%)</dt><dd class="tabular-nums">{{ money($invoice->tax_amount, $invoice->currency) }}</dd></div>
+                        @foreach ($invoice->taxLines() as $label => $amount)
+                            <div class="flex justify-between"><dt class="text-stone-600">{{ $label }}</dt><dd class="tabular-nums">{{ money($amount, $invoice->currency) }}</dd></div>
+                        @endforeach
                         <div class="flex justify-between border-t border-stone-200 pt-1.5 font-semibold text-stone-900"><dt>Total</dt><dd class="tabular-nums">{{ money($invoice->total, $invoice->currency) }}</dd></div>
                         <div class="flex justify-between"><dt class="text-stone-600">Paid</dt><dd class="tabular-nums">{{ money($invoice->amount_paid, $invoice->currency) }}</dd></div>
                         <div class="flex justify-between text-base font-semibold {{ $invoice->balance > 0 && $invoice->status !== 'draft' ? 'text-red-700' : 'text-stone-900' }}"><dt>Balance</dt><dd class="tabular-nums">{{ money($invoice->balance, $invoice->currency) }}</dd></div>
                     </dl>
                 </div>
-                @if ($invoice->notes) <p class="border-t border-stone-200 p-4 text-sm whitespace-pre-line text-stone-600">{{ $invoice->notes }}</p> @endif
+                @if ($invoice->notes) <div class="rich border-t border-stone-200 p-4 text-sm text-stone-600">{{ rich($invoice->notes) }}</div> @endif
             </section>
 
             <section class="card">

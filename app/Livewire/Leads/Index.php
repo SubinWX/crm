@@ -108,7 +108,7 @@ class Index extends Component
             'form.stage' => ['required', Rule::in(array_keys(Lead::STAGES))],
             'form.next_action' => ['nullable', 'string', 'max:255'],
             'form.next_action_date' => ['nullable', 'date', 'required_with:form.next_action'],
-            'form.notes' => ['nullable', 'string', 'max:5000'],
+            'form.notes' => ['nullable', 'string', 'max:20000'],
             'form.lost_reason' => ['nullable', 'string', 'max:255'],
             'serviceIds.*' => [Rule::exists('lookups', 'id')->where('type', 'work_type')],
         ], ['form.next_action_date.required_with' => 'Give the next action a due date.'],

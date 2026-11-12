@@ -81,7 +81,7 @@ class ReportController extends Controller
     public function expenses(Request $request)
     {
         $filters = $request->only(['search', 'category', 'client', 'method', 'from', 'to', 'recurring']);
-        $expenses = ExpenseFilters::apply(Expense::query()->with(['category', 'method', 'client']), $filters)
+        $expenses = ExpenseFilters::apply(Expense::query()->with(['category', 'method', 'client', 'link']), $filters)
             ->orderBy('expense_date')->orderBy('id')->get();
 
         return $this->pdf(! empty($filters['recurring']) ? 'Recurring expenses' : 'Expenses', $filters, 'expense_date',
@@ -90,7 +90,7 @@ class ReportController extends Controller
                 fmt_date($e->expense_date),
                 $e->payee ?: '—',
                 $e->category?->name ?? '—',
-                $e->client?->name ?? 'General overhead',
+                $e->linkedToLabel(),
                 $e->method?->name ?? '—',
                 $e->is_recurring ? (Expense::FREQUENCIES[$e->recurring_frequency] ?? 'Yes') : '—',
                 str($e->description)->limit(90)->toString(),
@@ -131,7 +131,11 @@ class ReportController extends Controller
             $parts[] = ($f('from') ? fmt_date($f('from')) : 'Beginning').' to '.($f('to') ? fmt_date($f('to')) : 'today');
         }
         if ($f('client')) {
-            $parts[] = $f('client') === 'overhead' ? 'General overhead only' : 'Client: '.(Client::whereKey($f('client'))->value('name') ?? '?');
+            $parts[] = match (true) {
+                $f('client') === 'overhead' => 'General overhead only',
+                str_starts_with((string) $f('client'), 'link:') => 'Linked to: '.(Lookup::whereKey((int) substr((string) $f('client'), 5))->value('name') ?? '?'),
+                default => 'Client: '.(Client::whereKey($f('client'))->value('name') ?? '?'),
+            };
         }
         if ($f('status')) {
             $parts[] = 'Status: '.(Invoice::STATUSES[$f('status')] ?? $f('status'));
