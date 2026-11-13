@@ -149,11 +149,9 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
         Route::get('/leave', Livewire\Team\Leave::class)->name('leave');
         Route::get('/attendance', Livewire\Team\Attendance::class)->name('attendance');
         Route::get('/attendance/export', [ExportController::class, 'attendance'])->middleware('can:team.manage')->name('attendance.export');
-        Route::middleware('can:clients.view')->group(function () {
-            Route::get('/projects', Livewire\Work\Projects::class)->name('projects.index');
-            Route::get('/projects/{project}', Livewire\Work\ProjectShow::class)->name('projects.show');
-            Route::get('/renewals', Livewire\Work\Renewals::class)->name('renewals.index');
-        });
+        Route::get('/projects', Livewire\Work\Projects::class)->middleware('can:projects.view')->name('projects.index');
+        Route::get('/projects/{project}', Livewire\Work\ProjectShow::class)->middleware('can:projects.view')->name('projects.show');
+        Route::get('/renewals', Livewire\Work\Renewals::class)->middleware('can:hosting.view')->name('renewals.index');
         Route::get('/clients-export', [ExportController::class, 'clients'])->middleware('can:clients.manage')->name('clients.export');
     });
 

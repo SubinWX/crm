@@ -72,7 +72,9 @@ class Index extends Component
         if ($this->leadId) {
             Gate::authorize('sales.manage'); // leads belong to sales
         }
-        if ($this->clientId) {
+        if ($this->projectId) {
+            Gate::authorize('projects.view'); // tasks shown on a project page
+        } elseif ($this->clientId) {
             Gate::authorize('client.access', Client::findOrFail($this->clientId));
         }
     }
@@ -258,7 +260,7 @@ class Index extends Component
 
         $embedded = (bool) ($this->clientId || $this->leadId);
         $formClient = $this->form['for'] === 'client' ? ($this->form['client_id'] ?? null) : null;
-        $projectAccess = Gate::allows('workspace') && Gate::allows('clients.view');
+        $projectAccess = Gate::allows('workspace') && Gate::allows('projects.view');
         $canSales = Gate::allows('sales.manage');
 
         return view('livewire.tasks.index', [

@@ -28,7 +28,7 @@
                             @php $days = days_until($row['date']); @endphp
                             <tr>
                                 <td @class(['whitespace-nowrap', 'font-semibold text-red-700' => $days !== null && $days <= 60])>{{ fmt_date($row['date']) }}</td>
-                                <td><a class="link text-stone-900" href="{{ route('clients.show', ['client' => $row['client_id'], 'tab' => 'renewals']) }}">{{ $row['client'] }}</a></td>
+                                <td>@can('clients.view')<a class="link text-stone-900" href="{{ route('clients.show', ['client' => $row['client_id'], 'tab' => 'renewals']) }}">{{ $row['client'] }}</a>@else <span>{{ $row['client'] }}</span> @endcan</td>
                                 <td class="font-medium text-stone-900">{{ $row['name'] }}</td>
                                 <td><button type="button" class="{{ $row['type'] === 'hosting' ? 'badge-blue' : 'badge-gray' }} cursor-pointer" wire:click="$set('type', '{{ $row['type'] }}')">{{ $row['label'] }}</button></td>
                                 <td>{{ $row['provider'] ?: '—' }}</td>
@@ -65,7 +65,7 @@
                         @php $urgency = $renewal->urgency(); $days = $renewal->daysUntilDue(); @endphp
                         <tr wire:key="renewal-{{ $renewal->id }}">
                             <td><span class="font-medium text-stone-900">{{ $renewal->name }}</span> @if ($renewal->status !== 'active') <span class="badge-gray">Cancelled</span> @endif</td>
-                            @unless ($clientId) <td><a class="link" href="{{ route('clients.show', ['client' => $renewal->client_id, 'tab' => 'renewals']) }}">{{ $renewal->client->name }}</a></td> @endunless
+                            @unless ($clientId) <td>@can('clients.view')<a class="link" href="{{ route('clients.show', ['client' => $renewal->client_id, 'tab' => 'renewals']) }}">{{ $renewal->client->name }}</a>@else <span>{{ $renewal->client->name }}</span> @endcan</td> @endunless
                             <td>{{ \App\Models\Renewal::TYPES[$renewal->type] ?? $renewal->type }}</td>
                             <td>{{ $renewal->provider ?: '—' }}</td>
                             <td @class(['whitespace-nowrap', 'font-semibold text-red-700' => in_array($urgency, ['overdue', 'soon'])])>{{ fmt_date($renewal->renewal_date) }}</td>

@@ -24,7 +24,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'role' => User::ROLE_STAFF,
             'is_active' => true,
-            'permissions' => ['clients.view'],
+            'permissions' => ['clients.view', 'projects.view', 'hosting.view'],
         ];
     }
 
@@ -36,6 +36,13 @@ class UserFactory extends Factory
     /** @param  string[]  $permissions */
     public function staff(array $permissions = ['clients.view']): static
     {
+        // Tests written when clients, projects and hosting were one area keep meaning the same thing.
+        if (in_array('clients.manage', $permissions, true)) {
+            $permissions = array_values(array_unique([...$permissions, 'projects.manage', 'hosting.manage']));
+        } elseif (in_array('clients.view', $permissions, true)) {
+            $permissions = array_values(array_unique([...$permissions, 'projects.view', 'hosting.view']));
+        }
+
         return $this->state(fn () => ['role' => User::ROLE_STAFF, 'permissions' => $permissions]);
     }
 

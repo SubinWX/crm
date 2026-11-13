@@ -18,10 +18,10 @@
                 ['clients.index', 'All Clients', 'users', $user->can('clients.view'), ['clients.index', 'clients.show', 'clients.edit']],
                 ['clients.create', 'Add Client', 'plus', $user->can('clients.create'), 'clients.create'],
                 ['campaigns.index', 'Bulk Messages', 'bell', $user->can('admin'), 'campaigns.*'],
-                ['renewals.index', 'Hosting & Renewals', 'server', $user->can('workspace') && $user->can('clients.view'), 'renewals.*'],
+                ['renewals.index', 'Hosting & Renewals', 'server', $user->can('workspace') && $user->can('hosting.view'), 'renewals.*'],
             ]],
             ['Projects', 'check', [
-                ['projects.index', 'Projects & Services', 'document', $user->can('workspace') && $user->can('clients.view'), 'projects.*'],
+                ['projects.index', 'Projects & Services', 'document', $user->can('workspace') && $user->can('projects.view'), 'projects.*'],
                 ['tasks.index', 'Tasks & Follow-ups', 'check', $user->can('tasks.view'), 'tasks.*'],
             ]],
             ['Office', 'desktop', [

@@ -53,9 +53,9 @@ class TeamWorkTest extends TestCase
         parent::setUp();
         $this->travelTo('2026-11-12 06:00:00'); // Thursday 12 Nov 2026, 11:30 IST
         $this->admin = User::factory()->superAdmin()->create(['name' => 'Asha Admin']);
-        $this->ravi = User::factory()->create(['name' => 'Ravi Staff', 'role' => User::ROLE_STAFF, 'permissions' => ['clients.view']]);
-        $this->meera = User::factory()->create(['name' => 'Meera Staff', 'role' => User::ROLE_STAFF, 'permissions' => ['clients.view']]);
-        $this->hr = User::factory()->create(['name' => 'Hari HR', 'role' => User::ROLE_STAFF, 'permissions' => ['team.manage', 'clients.view']]);
+        $this->ravi = User::factory()->create(['name' => 'Ravi Staff', 'role' => User::ROLE_STAFF, 'permissions' => ['clients.view', 'projects.view', 'hosting.view']]);
+        $this->meera = User::factory()->create(['name' => 'Meera Staff', 'role' => User::ROLE_STAFF, 'permissions' => ['clients.view', 'projects.view', 'hosting.view']]);
+        $this->hr = User::factory()->create(['name' => 'Hari HR', 'role' => User::ROLE_STAFF, 'permissions' => ['team.manage', 'clients.view', 'projects.view', 'hosting.view']]);
         $this->client = Client::create(['name' => 'Kerala Traders']);
     }
 

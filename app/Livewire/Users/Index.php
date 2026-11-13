@@ -82,7 +82,7 @@ class Index extends Component
             'name' => '', 'email' => '', 'phone' => '', 'alt_phone' => '', 'date_of_birth' => '',
             'role' => in_array($this->role, $this->roles(), true) ? $this->role : $this->roles()[0], 'is_active' => true,
             'password' => '',
-            'permissions' => ['clients.view', 'tasks.manage'],
+            'permissions' => ['clients.view', 'projects.view', 'tasks.manage'],
         ];
         $this->editingId = null;
         $this->photo = null;

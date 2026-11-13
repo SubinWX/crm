@@ -37,7 +37,7 @@ class CampaignAndSearchTest extends TestCase
     {
         parent::setUp();
         $this->admin = User::factory()->superAdmin()->create(['name' => 'Asha Admin', 'email' => 'asha@example.test']);
-        $this->staff = User::factory()->create(['name' => 'Ravi Staff', 'role' => User::ROLE_STAFF, 'permissions' => ['clients.view']]);
+        $this->staff = User::factory()->create(['name' => 'Ravi Staff', 'role' => User::ROLE_STAFF, 'permissions' => ['clients.view', 'projects.view', 'hosting.view']]);
         Setting::put('company_name', 'WX Agency');
         Client::create(['name' => 'Kerala Traders', 'contact_name' => 'Anil', 'email' => 'anil@kerala.test', 'phone1' => '98765 43210']);
         Client::create(['name' => 'Malabar Foods', 'email' => 'hello@malabar.test', 'status' => 'on_hold']);

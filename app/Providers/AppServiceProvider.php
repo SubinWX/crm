@@ -113,7 +113,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('client.access', fn (User $user, Client $client) => $user->hasPermission('clients.view')
             && (! $user->isSubAdmin() || (int) $client->created_by === $user->id));
 
-        // Changing a client's details, hosting records and files. Staff need clients.manage;
+        // Changing a client's details, contacts and files. Staff need clients.manage;
         // Sub Admins may do it for the clients they added. Archiving, deleting and renewals stay with clients.manage.
         Gate::define('client.update', fn (User $user, Client $client) => $user->hasPermission('clients.manage')
             || ($user->isSubAdmin() && (int) $client->created_by === $user->id));

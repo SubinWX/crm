@@ -47,7 +47,8 @@ class Dashboard extends Component
 
         $canClients = Gate::allows('clients.view');
         $canFinance = Gate::allows('finance');
-        $data = ['canClients' => $canClients, 'canFinance' => $canFinance, 'canAdmin' => Gate::allows('admin'), 'today' => $today];
+        $canHosting = Gate::allows('hosting.view');
+        $data = ['canClients' => $canClients, 'canHosting' => $canHosting, 'canFinance' => $canFinance, 'canAdmin' => Gate::allows('admin'), 'today' => $today];
 
         if ($canClients) {
             $data['clientsThisMonth'] = Client::where('created_at', '>=', $monthStartUtc)->count();
@@ -60,6 +61,9 @@ class Dashboard extends Component
                 ->countBy(fn ($d) => Carbon::parse($d)->timezone(crm_tz())->format('Y-m'));
             $data['monthlyClients'] = $months->map(fn ($m) => ['label' => $m->format('M Y'), 'count' => $created[$m->format('Y-m')] ?? 0]);
 
+        }
+
+        if ($canHosting) {
             $hosting = fn () => HostingRecord::query()->remindable()->with(['client', 'serverProvider'])->orderBy('next_payment_date');
             $data['hostingOverdue'] = $hosting()->where('next_payment_date', '<', $todayStr)->get();
             $data['hostingWeek'] = $hosting()->whereBetween('next_payment_date', [$todayStr, $weekEnd])->get();

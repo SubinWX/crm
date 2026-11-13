@@ -23,6 +23,8 @@
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @if ($canClients)
             <x-stat label="Clients added this month" :value="$clientsThisMonth" :hint="$activeClients.' active '.str('client')->plural($activeClients).' in total'" :href="route('clients.index')" />
+        @endif
+        @if ($canHosting)
             <x-stat label="Overdue renewals" :value="$hostingOverdue->count()" :hint="$hostingWeek->count().' more due within 7 days'" :tone="$hostingOverdue->count() ? 'danger' : 'default'" :href="route('renewals.index', ['type' => 'hosting', 'hdue' => 'overdue'])" />
         @endif
         @if ($canFinance)
@@ -32,7 +34,7 @@
     </div>
 
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        @if ($canClients)
+        @if ($canHosting)
             {{-- Hosting renewals --}}
             <section class="card xl:col-span-2">
                 <div class="card-header">
@@ -92,6 +94,8 @@
                     </div>
                 </div>
             </section>
+        @endif
+        @if ($canClients)
 
             {{-- Clients --}}
             <section class="card">

@@ -61,7 +61,7 @@
             <section class="card">
                 <div class="card-header"><h2 class="card-title">Details</h2></div>
                 <dl class="space-y-3 p-4 text-sm">
-                    <div><dt class="label">Client</dt><dd><a class="link" href="{{ route('clients.show', ['client' => $project->client_id, 'tab' => 'projects']) }}">{{ $project->client->name }}</a></dd></div>
+                    <div><dt class="label">Client</dt><dd>@can('clients.view')<a class="link" href="{{ route('clients.show', ['client' => $project->client_id, 'tab' => 'projects']) }}">{{ $project->client->name }}</a>@else <span>{{ $project->client->name }}</span> @endcan</dd></div>
                     <div><dt class="label">Project owner</dt><dd>{{ $project->owner?->name ?? 'Unassigned' }}</dd></div>
                     <div><dt class="label">Tasks</dt><dd>{{ $tasksOpen }} open · {{ $tasksDone }} done</dd></div>
                     <div><dt class="label">Start</dt><dd>{{ fmt_date($project->start_date) }}</dd></div>

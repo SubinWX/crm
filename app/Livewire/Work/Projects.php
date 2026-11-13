@@ -54,7 +54,10 @@ class Projects extends Component
     public function booted(): void
     {
         Gate::authorize('workspace');
-        $this->clientId ? Gate::authorize('client.access', Client::findOrFail($this->clientId)) : Gate::authorize('clients.view');
+        Gate::authorize('projects.view');
+        if ($this->clientId) {
+            Gate::authorize('client.access', Client::findOrFail($this->clientId));
+        }
     }
 
     public function updated($property): void
@@ -82,7 +85,7 @@ class Projects extends Component
 
     public function create(): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('projects.manage');
         $this->resetForm();
         $this->resetValidation();
         $this->showForm = true;
@@ -90,7 +93,7 @@ class Projects extends Component
 
     public function edit(int $id): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('projects.manage');
         $project = $this->find($id);
         $this->resetValidation();
         $this->editingId = $project->id;
@@ -105,7 +108,7 @@ class Projects extends Component
 
     public function save(): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('projects.manage');
         if ($this->clientId) {
             $this->form['client_id'] = (string) $this->clientId;
         }
@@ -140,7 +143,7 @@ class Projects extends Component
 
     public function delete(int $id): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('projects.manage');
         $this->find($id)->delete();
     }
 
@@ -210,7 +213,7 @@ class Projects extends Component
             'users' => User::active()->where('role', '!=', User::ROLE_SUB_ADMIN)->orderBy('name')->get(['id', 'name']),
             'clients' => $this->showForm && ! $this->clientId ? Client::notArchived()->orderBy('name')->get(['id', 'name']) : collect(),
             'quotes' => $this->showForm && $formClient ? Quote::where('client_id', $formClient)->where('status', 'accepted')->latest('id')->get(['id', 'number', 'title']) : collect(),
-            'canManage' => Gate::allows('clients.manage'),
+            'canManage' => Gate::allows('projects.manage'),
         ]);
     }
 }

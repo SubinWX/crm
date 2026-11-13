@@ -29,9 +29,9 @@ class Show extends Component
             'contacts' => 'Contacts',
             'log' => $team ? 'Contact Log' : null,
             'quotes' => Gate::allows('sales.manage') ? 'Quotes' : null,
-            'projects' => $team ? 'Projects' : null,
+            'projects' => $team && Gate::allows('projects.view') ? 'Projects' : null,
             'support' => Gate::allows('support.manage') ? 'Support' : null,
-            'renewals' => 'Hosting & Renewals',
+            'renewals' => Gate::allows('hosting.view') ? 'Hosting & Renewals' : null,
             'finance' => Gate::allows('finance') ? 'Invoices & Payments' : null,
             'tasks' => $team ? 'Tasks & Follow-ups' : null,
             'files' => 'Files',
@@ -66,7 +66,7 @@ class Show extends Component
         return view('livewire.clients.show', [
             'tabs' => $this->tabs(),
             'financials' => Gate::allows('finance') ? $this->client->financials() : null,
-            'hosting' => $this->tab === 'overview'
+            'hosting' => $this->tab === 'overview' && Gate::allows('hosting.view')
                 ? $this->client->hostingRecords()->with(['serverType', 'serverProvider'])->orderBy('next_payment_date')->get() : collect(),
             'openTasks' => $this->tab === 'overview' && Gate::allows('workspace') ? $this->client->tasks()->open()->with('assignees')->orderBy('due_date')->limit(5)->get() : collect(),
             'activity' => $this->tab === 'activity'

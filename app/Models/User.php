@@ -31,20 +31,44 @@ class User extends Authenticatable
      * Users, settings and the activity log always stay with Super Admins.
      */
     public const STAFF_PERMISSIONS = [
-        'clients.view' => 'View clients, hosting and files',
-        'clients.manage' => 'Add, edit and archive clients and hosting',
+        'clients.view' => 'View clients',
+        'clients.manage' => 'Add and edit clients',
+        'projects.view' => 'View projects',
+        'projects.manage' => 'Add and edit projects',
+        'hosting.view' => 'View hosting and renewals',
+        'hosting.manage' => 'Add and edit hosting and renewals',
         'tasks.manage' => 'Create and update tasks',
-        'posters.manage' => 'Upload and edit social media posters',
-        'support.manage' => 'Answer and manage support tickets',
-        'sales.manage' => 'Manage leads, follow-ups, quotes and proposals',
-        'careers.manage' => 'Manage job vacancies and applications',
-        'finance.manage' => 'Invoices, payments, expenses and GST reports',
-        'team.manage' => 'Approve leave, manage attendance and holidays, see everyone’s timesheets',
+        'posters.manage' => 'Upload and edit posters',
+        'support.manage' => 'Support tickets',
+        'sales.manage' => 'Leads, quotes and proposals',
+        'careers.manage' => 'Vacancies and applications',
+        'finance.manage' => 'Invoices, payments, expenses, GST',
+        'team.manage' => 'Approve leave, manage attendance',
+    ];
+
+    /** A longer explanation of each option, shown under its switch in the user form. */
+    public const PERMISSION_HINTS = [
+        'clients.view' => 'Open the client list, client profiles, contacts and files.',
+        'clients.manage' => 'Add, edit, archive and import clients, and upload their files.',
+        'projects.view' => 'Open Projects & Services and each project page.',
+        'projects.manage' => 'Add, edit and delete projects and their team.',
+        'hosting.view' => 'Open Hosting & Renewals and see renewal dates.',
+        'hosting.manage' => 'Add and edit hosting records and renewals, and mark them renewed.',
+        'tasks.manage' => 'Add tasks and change any task. Everyone can already see tasks.',
+        'posters.manage' => 'Upload, edit and delete social media posters.',
+        'support.manage' => 'Answer and manage support tickets from clients.',
+        'sales.manage' => 'Manage leads, follow-ups, quotes and proposals.',
+        'careers.manage' => 'Manage job vacancies and the applications received.',
+        'finance.manage' => 'Invoices, payments, expenses and GST reports.',
+        'team.manage' => 'Approve leave, manage attendance and holidays, see everyone’s timesheets.',
     ];
 
     /** The same options grouped the way the menu is, for the user form. */
     public const PERMISSION_GROUPS = [
-        'Clients & Work' => ['clients.view', 'clients.manage', 'tasks.manage', 'posters.manage'],
+        'Clients' => ['clients.view', 'clients.manage'],
+        'Projects' => ['projects.view', 'projects.manage', 'tasks.manage'],
+        'Hosting' => ['hosting.view', 'hosting.manage'],
+        'Office' => ['posters.manage'],
         'Sales' => ['sales.manage'],
         'Support' => ['support.manage'],
         'Careers' => ['careers.manage'],
@@ -138,12 +162,12 @@ class User extends Authenticatable
         }
         $granted = $this->permissions ?? [];
         if ($this->isSubAdmin()) {
-            // Always their own clients (which ones is decided by the "client.access" gate), plus any extra area switched on for them.
-            return $permission === 'clients.view'
+            // Always their own clients and those clients' hosting (which ones is decided by the "client.access" gate), plus any extra area switched on for them.
+            return in_array($permission, ['clients.view', 'hosting.view'], true)
                 || (in_array($permission, self::SUB_ADMIN_PERMISSIONS, true) && in_array($permission, $granted, true));
         }
-        // Managing clients implies being able to see them.
-        if ($permission === 'clients.view' && in_array('clients.manage', $granted, true)) {
+        // Being able to change an area implies being able to see it.
+        if (str_ends_with($permission, '.view') && in_array(substr($permission, 0, -5).'.manage', $granted, true)) {
             return true;
         }
 

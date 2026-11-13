@@ -88,6 +88,7 @@
             </section>
 
             <div class="space-y-5">
+                @can('hosting.view')
                 <section class="card">
                     <div class="card-header">
                         <h2 class="card-title">Hosting</h2>
@@ -108,6 +109,7 @@
                         <x-empty>No hosting records yet.</x-empty>
                     @endforelse
                 </section>
+                @endcan
 
                 @can('workspace')
                 <section class="card">

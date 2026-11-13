@@ -22,7 +22,7 @@
                     @forelse ($projects as $project)
                         <tr wire:key="project-{{ $project->id }}">
                             <td class="max-w-80"><a href="{{ route('projects.show', $project) }}" class="font-medium text-stone-900 hover:underline">{{ $project->name }}</a><p class="text-xs text-stone-500">{{ \App\Models\Project::KINDS[$project->kind] ?? $project->kind }}</p></td>
-                            @unless ($clientId) <td><a class="link" href="{{ route('clients.show', ['client' => $project->client_id, 'tab' => 'projects']) }}">{{ $project->client->name }}</a></td> @endunless
+                            @unless ($clientId) <td>@can('clients.view')<a class="link" href="{{ route('clients.show', ['client' => $project->client_id, 'tab' => 'projects']) }}">{{ $project->client->name }}</a>@else <span>{{ $project->client->name }}</span> @endcan</td> @endunless
                             <td>{{ $project->owner?->name ?? 'Unassigned' }}</td>
                             <td class="max-w-56 text-sm">{{ $project->members->pluck('name')->implode(', ') ?: 'Anyone' }}</td>
                             <td class="whitespace-nowrap"><a href="{{ route('projects.show', $project) }}#tasks" class="hover:underline"><span class="tabular-nums text-stone-900">{{ $project->open_tasks_count }}</span> <span class="text-xs text-stone-500">open of {{ $project->tasks_count }}</span></a></td>

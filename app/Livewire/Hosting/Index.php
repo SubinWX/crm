@@ -57,7 +57,7 @@ class Index extends Component
         $this->clientId
             ? Gate::authorize('client.access', Client::findOrFail($this->clientId))
             : Gate::authorize('workspace');
-        Gate::authorize('clients.view');
+        Gate::authorize('hosting.view');
     }
 
     public function mount(?int $clientId = null): void
@@ -73,12 +73,11 @@ class Index extends Component
         }
     }
 
-    /** Add and edit hosting: clients.manage, or a Sub Admin on a client they added. */
+    /** Add and edit hosting: hosting.manage, or a Sub Admin on a client they added. */
     public function canEdit(): bool
     {
-        return $this->clientId
-            ? Gate::allows('client.update', Client::findOrFail($this->clientId))
-            : Gate::allows('clients.manage');
+        return Gate::allows('hosting.manage')
+            || ($this->clientId && auth()->user()->isSubAdmin() && Gate::allows('client.update', Client::findOrFail($this->clientId)));
     }
 
     protected function resetForm(): void
@@ -149,7 +148,7 @@ class Index extends Component
 
     public function delete(int $id): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $this->findRecord($id)->delete();
         $this->dispatch('toast', message: 'Hosting record deleted.');
     }
@@ -171,7 +170,7 @@ class Index extends Component
 
     public function startRenewal(int $id): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $record = $this->findRecord($id);
         $this->resetValidation();
         $this->renewingId = $record->id;
@@ -180,7 +179,7 @@ class Index extends Component
 
     public function saveRenewal(): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $record = $this->findRecord($this->renewingId);
 
         $this->validate([

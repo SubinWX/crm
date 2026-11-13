@@ -10,8 +10,8 @@
         ['clients', 'Clients', $can('clients.view')],
         ['sales', 'Leads, quotes and proposals', $can('sales.manage')],
         ['tasks', 'Tasks and follow-ups', $can('tasks.view')],
-        ['renewals', 'Hosting and renewals', $team && $can('clients.view')],
-        ['projects', 'Projects and services', $team && $can('clients.view')],
+        ['renewals', 'Hosting and renewals', $team && $can('hosting.view')],
+        ['projects', 'Projects and services', $team && $can('projects.view')],
         ['finance', 'Invoices, payments and expenses', $can('finance')],
         ['gst', 'GST invoices and summary', $can('finance')],
         ['support', 'Support portal and tickets', $can('support.manage') || $can('portal-users.manage')],
@@ -143,7 +143,7 @@
                 </section>
             @endif
 
-            @if ($team && $can('clients.view'))
+            @if ($team && $can('hosting.view'))
                 <section id="renewals" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Hosting and renewals</h2>
                     <p><strong>Clients → Hosting &amp; Renewals</strong> holds everything that renews.</p>
@@ -152,7 +152,7 @@
                         <li><strong>Paid Server Clients (Hosting)</strong> — hosting you bill for, with filters for overdue, due within 7 days and due within 2 months.</li>
                         <li><strong>Domain, Maintenance, Retainer</strong> — the other renewals.</li>
                     </ul>
-                    @if ($can('clients.manage'))
+                    @if ($can('hosting.manage'))
                         <h3>When a renewal is paid</h3>
                         <ol>
                             <li>Find the record and click <strong>Record Renewal</strong>.</li>
@@ -162,7 +162,9 @@
                     @endif
                     <p><strong>Server Type</strong> is the arrangement (Paid or Self-managed); <strong>Server Chosen</strong> is the provider or plan. Only active <em>Paid</em> records are reminded.</p>
                 </section>
+            @endif
 
+            @if ($team && $can('projects.view'))
                 <section id="projects" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Projects and services</h2>
                     <p><strong>Projects → Projects &amp; Services</strong> tracks each client's projects and ongoing services: the project owner, the people working on it, its tasks, status, deadline and the next milestone. Open a project to add tasks under it; each task can have several people. A project can be linked to the accepted quote it came from. Overdue deadlines are flagged in red.</p>

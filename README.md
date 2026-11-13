@@ -203,7 +203,9 @@ php artisan crm:send-reminders --date=2027-01-03
 | Area | Super Admin | Staff | Admin |
 |---|---|---|---|
 | Dashboard | Full | Team view | Own clients only |
-| Clients, hosting, client files | Yes | With `clients.view` / `clients.manage` | Add clients; view and edit only the clients they added (no archiving) |
+| Clients and client files | Yes | With `clients.view` / `clients.manage` | Add clients; view and edit only the clients they added (no archiving) |
+| Projects and services | Yes | With `projects.view` / `projects.manage` | No |
+| Hosting and renewals | Yes | With `hosting.view` / `hosting.manage` | Hosting of the clients they added |
 | Tasks, posters, Paid Server Clients | Yes | Yes (`tasks.manage` / `posters.manage` to change) | No |
 | Equipment | Manage everyone's | Own items, read-only | Own items, read-only |
 | Profile (details, devices) | Own and everyone's | Own; staff with `team.manage` also open other staff | Own and staff members' |

@@ -127,7 +127,7 @@
     </div>
 
     @if ($showForm)
-        <x-modal :title="$editingId ? 'Edit user' : 'Add user'" size="max-w-xl">
+        <x-modal :title="$editingId ? 'Edit user' : 'Add user'" size="max-w-2xl">
             <form wire:submit="save" class="grid gap-4 md:grid-cols-2">
                 <x-field label="Headshot" name="photo" hint="JPG, PNG or WebP. After choosing a picture you can crop it before it is saved." class="md:col-span-2">
                     @php $editingUser = $editingId ? $users->firstWhere('id', $editingId) : null; @endphp
@@ -179,27 +179,30 @@
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <p class="label mb-0">Access: what this person can use</p>
                             <span class="flex gap-3 text-xs">
-                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode(array_values(array_unique(array_merge($mayGive, array_diff($form['permissions'], $mayGive))))) }})">Tick all</button>
-                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode(array_values(array_diff($form['permissions'], $mayGive))) }})">Clear all</button>
+                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode(array_values(array_unique(array_merge($mayGive, array_diff($form['permissions'], $mayGive))))) }})">All on</button>
+                                <button type="button" class="link" wire:click="$set('form.permissions', {{ json_encode(array_values(array_diff($form['permissions'], $mayGive))) }})">All off</button>
                             </span>
                         </div>
                         @if ($form['role'] === 'sub_admin')
                             <p class="mt-1 rounded-md bg-stone-50 p-3 text-sm text-stone-600">Admins always can add clients, see and edit only the clients they added, and add support portal users. You can also open the areas below for them. <strong class="text-stone-800">Those areas show every record in them, not only this person’s clients.</strong></p>
                         @endif
-                        <div class="mt-2 grid gap-x-6 gap-y-3 rounded-md border border-stone-200 p-3 sm:grid-cols-2">
+                        {{-- One line per area: its name, a short explanation, and an on/off switch. --}}
+                        <div class="mt-2 overflow-hidden rounded-md border border-stone-200">
                             @foreach (\App\Models\User::PERMISSION_GROUPS as $group => $keys)
                                 @if ($shown = array_values(array_intersect($keys, $grantable)))
                                     <fieldset>
-                                        <legend class="text-xs font-semibold tracking-wide text-stone-500 uppercase">{{ $group }}</legend>
-                                        <div class="mt-1 space-y-1.5">
-                                            @foreach ($shown as $key)
-                                                @php $locked = ! in_array($key, $mayGive, true); @endphp
-                                                <label @class(['flex items-start gap-2 text-sm', 'text-stone-400' => $locked]) @if ($locked) title="Only a Super Admin can change this, because this area has not been given to you." @endif>
-                                                    <input type="checkbox" class="mt-0.5 rounded border-stone-300 disabled:opacity-50" value="{{ $key }}" wire:model="form.permissions" @disabled($locked)>
-                                                    <span>{{ \App\Models\User::STAFF_PERMISSIONS[$key] }}@if ($locked) <span class="text-xs">(Super Admin only)</span>@endif</span>
-                                                </label>
-                                            @endforeach
-                                        </div>
+                                        <legend class="w-full border-b border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold tracking-wide text-stone-500 uppercase">{{ $group }}</legend>
+                                        @foreach ($shown as $key)
+                                            @php $locked = ! in_array($key, $mayGive, true); @endphp
+                                            <label @class(['flex cursor-pointer items-center gap-3 border-b border-stone-100 px-3 py-2 text-sm hover:bg-stone-50', 'cursor-not-allowed text-stone-400' => $locked]) @if ($locked) title="Only a Super Admin can change this, because this area has not been given to you." @endif>
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="font-medium text-stone-900">{{ \App\Models\User::STAFF_PERMISSIONS[$key] }}</span>@if ($locked) <span class="text-xs text-stone-500">(Super Admin only)</span>@endif
+                                                    <span class="block truncate text-xs text-stone-500" title="{{ \App\Models\User::PERMISSION_HINTS[$key] ?? '' }}">{{ \App\Models\User::PERMISSION_HINTS[$key] ?? '' }}</span>
+                                                </span>
+                                                <input type="checkbox" class="peer sr-only" role="switch" value="{{ $key }}" wire:model="form.permissions" @disabled($locked) aria-label="{{ \App\Models\User::STAFF_PERMISSIONS[$key] }}">
+                                                <span aria-hidden="true" class="relative h-6 w-11 shrink-0 rounded-full bg-stone-300 transition-colors peer-checked:bg-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 peer-disabled:opacity-50 after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
+                                            </label>
+                                        @endforeach
                                     </fieldset>
                                 @endif
                             @endforeach

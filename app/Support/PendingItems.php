@@ -71,7 +71,7 @@ class PendingItems
         if ($user->can('finance')) {
             $add(Invoice::query()->overdue()->count(), 'invoice overdue for payment', 'invoices overdue for payment', route('invoices.index'), 'cash', true);
         }
-        if ($workspace && $user->can('clients.view')) {
+        if ($workspace && $user->can('hosting.view')) {
             $due = Renewal::query()->remindable()->where('renewal_date', '<=', $soon)->count()
                 + HostingRecord::query()->remindable()->where('next_payment_date', '<=', $soon)->count();
             $add($due, 'renewal due within 7 days or overdue', 'renewals due within 7 days or overdue', route('renewals.index'), 'server', true);

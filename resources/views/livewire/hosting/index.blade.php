@@ -41,7 +41,7 @@
                         @php $urgent = in_array($record->urgency(), ['overdue', 'week', 'two_months']); @endphp
                         <tr wire:key="host-{{ $record->id }}">
                             @unless ($clientId)
-                                <td><a class="link text-stone-900" href="{{ route('clients.show', ['client' => $record->client_id, 'tab' => 'renewals']) }}">{{ $record->client->name }}</a></td>
+                                <td>@can('clients.view')<a class="link text-stone-900" href="{{ route('clients.show', ['client' => $record->client_id, 'tab' => 'renewals']) }}">{{ $record->client->name }}</a>@else <span>{{ $record->client->name }}</span> @endcan</td>
                             @endunless
                             <td>
                                 <span class="font-medium text-stone-900">{{ $record->domain }}</span>
@@ -54,7 +54,7 @@
                             <td class="num">{{ money($record->renewal_amount) }}</td>
                             <td><x-urgency :record="$record" /></td>
                             <td class="text-right whitespace-nowrap">
-                                @can("clients.manage")
+                                @can("hosting.manage")
                                     @if ($record->status === "active" && $record->next_payment_date)
                                         <div><button type="button" class="btn-secondary btn-sm" wire:click="startRenewal({{ $record->id }})">Record Renewal</button></div>
                                     @endif
@@ -105,7 +105,7 @@
                                                 <p class="text-sm text-stone-500">No reminders: only active <strong>Paid</strong> records with a payment date are reminded.</p>
                                             @endforelse
                                             @if ($expanded->notes) <p class="mt-3 text-sm whitespace-pre-line text-stone-600">{{ $expanded->notes }}</p> @endif
-                                            @can('clients.manage')
+                                            @can('hosting.manage')
                                                 <button type="button" class="link mt-3 text-xs text-red-700" wire:click="delete({{ $record->id }})"
                                                         wire:confirm="Delete the hosting record for {{ $record->domain }} and its renewal history?">Delete this hosting record</button>
                                             @endcan

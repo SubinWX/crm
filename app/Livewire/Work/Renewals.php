@@ -59,7 +59,10 @@ class Renewals extends Component
     public function booted(): void
     {
         Gate::authorize('workspace');
-        $this->clientId ? Gate::authorize('client.access', Client::findOrFail($this->clientId)) : Gate::authorize('clients.view');
+        Gate::authorize('hosting.view');
+        if ($this->clientId) {
+            Gate::authorize('client.access', Client::findOrFail($this->clientId));
+        }
     }
 
     public function updated($property): void
@@ -85,7 +88,7 @@ class Renewals extends Component
 
     public function create(): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $this->resetForm();
         $this->resetValidation();
         $this->showForm = true;
@@ -93,7 +96,7 @@ class Renewals extends Component
 
     public function edit(int $id): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $renewal = $this->find($id);
         $this->resetValidation();
         $this->editingId = $renewal->id;
@@ -106,7 +109,7 @@ class Renewals extends Component
 
     public function save(): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         if ($this->clientId) {
             $this->form['client_id'] = (string) $this->clientId;
         }
@@ -133,7 +136,7 @@ class Renewals extends Component
 
     public function delete(int $id): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $this->find($id)->delete();
     }
 
@@ -154,7 +157,7 @@ class Renewals extends Component
 
     public function startRenewal(int $id): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $renewal = $this->find($id);
         $this->resetValidation();
         $this->renewingId = $renewal->id;
@@ -167,7 +170,7 @@ class Renewals extends Component
 
     public function saveRenewal(): void
     {
-        Gate::authorize('clients.manage');
+        Gate::authorize('hosting.manage');
         $renewal = $this->find($this->renewingId);
         $this->validate([
             'renewal.paid_on' => ['required', 'date'],
@@ -232,7 +235,7 @@ class Renewals extends Component
             'expanded' => $this->expandedId ? Renewal::with('logs.recorder')->find($this->expandedId) : null,
             'renewing' => $this->renewingId ? Renewal::with('client')->find($this->renewingId) : null,
             'clients' => $this->showForm && ! $this->clientId ? Client::notArchived()->orderBy('name')->get(['id', 'name']) : collect(),
-            'canManage' => Gate::allows('clients.manage'),
+            'canManage' => Gate::allows('hosting.manage'),
         ]);
     }
 }

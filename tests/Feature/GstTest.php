@@ -180,7 +180,7 @@ class GstTest extends TestCase
         $this->actingAs($this->admin)->get(route('gst.export', ['month' => '2026-13']))->assertNotFound();
 
         // Finance only.
-        $staff = User::factory()->create(['role' => User::ROLE_STAFF, 'permissions' => ['clients.manage']]);
+        $staff = User::factory()->create(['role' => User::ROLE_STAFF, 'permissions' => ['clients.manage', 'projects.manage', 'hosting.manage']]);
         $this->actingAs($staff)->get(route('gst.summary'))->assertForbidden();
         $this->actingAs($staff)->get(route('gst.export', ['month' => '2026-11']))->assertForbidden();
         $this->actingAs($this->admin)->get(route('gst.summary'))->assertOk()->assertSee('GST Summary');

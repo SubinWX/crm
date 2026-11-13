@@ -15,7 +15,7 @@ class ProjectShow extends Component
     public function booted(): void
     {
         Gate::authorize('workspace');
-        Gate::authorize('client.access', $this->project->client);
+        Gate::authorize('projects.view');
     }
 
     public function render()
@@ -38,7 +38,7 @@ class ProjectShow extends Component
             'tasksDone' => $project->tasks()->where('status', 'done')->count(),
             'canTasks' => Gate::allows('tasks.view'),
             'manager' => $manager,
-            'canManage' => Gate::allows('clients.manage'),
+            'canManage' => Gate::allows('projects.manage'),
             'canLog' => Project::loggableBy(auth()->user())->whereKey($project->id)->exists(),
         ])->title($project->name);
     }

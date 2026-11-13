@@ -40,7 +40,7 @@ class Box extends Component
                 ->orderByRaw('archived_at is not null')->orderBy('name')->limit(self::PER_GROUP)->get()
                 ->map(fn ($c) => ['title' => $c->name, 'sub' => trim(($c->contact_name ?: '').($c->archived_at ? ' · Archived' : ''), ' ·') ?: (Client::STATUSES[$c->status] ?? ''), 'url' => route('clients.show', $c)])->all();
         }
-        if ($workspace && Gate::allows('clients.view')) {
+        if ($workspace && Gate::allows('projects.view')) {
             $groups['Projects'] = Project::with('client')->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('next_milestone', 'like', $like))
                 ->latest('id')->limit(self::PER_GROUP)->get()
                 ->map(fn ($p) => ['title' => $p->name, 'sub' => $p->client?->name ?? '', 'url' => route('projects.show', $p)])->all();
