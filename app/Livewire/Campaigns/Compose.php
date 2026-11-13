@@ -90,8 +90,9 @@ class Compose extends Component
             'name' => ['required', 'string', 'max:255'],
             'channel' => ['required', Rule::in(array_keys(Campaign::CHANNELS))],
             'subject' => [$this->channel === 'email' ? 'required' : 'nullable', 'string', 'max:255'],
-            'body' => ['required', 'string', $this->channel === 'email' ? 'max:30000' : 'max:1500'],
-            'whatsappTemplate' => [$this->needsTemplate() ? 'required' : 'nullable', 'string', 'max:255', 'regex:/^[a-z0-9_]+$/'],
+            'body' => ['required', 'string', ['email' => 'max:30000', 'sms' => 'max:640'][$this->channel] ?? 'max:1500'],
+            // WhatsApp (Meta): the approved template's name. SMS: the DLT template ID, when the service needs one.
+            'whatsappTemplate' => [$this->needsTemplate() ? 'required' : 'nullable', 'string', 'max:255', $this->channel === 'sms' ? 'regex:/^[A-Za-z0-9_\-]+$/' : 'regex:/^[a-z0-9_]+$/'],
             'statuses' => ['array', 'min:1'],
         ];
     }
@@ -113,7 +114,7 @@ class Compose extends Component
         abort_unless($this->channel === 'email', 422);
         $this->validate(collect($this->rules())->only(['subject', 'body'])->all(), [], $this->labels());
         if (! Campaign::channelReady('email')) {
-            $this->addError('body', 'No email server is connected yet. Set it up in Administration → Email & WhatsApp.');
+            $this->addError('body', 'No email server is connected yet. Set it up in Administration → Email, WhatsApp & SMS.');
 
             return;
         }
@@ -130,13 +131,13 @@ class Compose extends Component
     {
         if (! Campaign::channelReady($this->channel)) {
             $this->addError('channel', $this->channel === 'email'
-                ? 'No email server is connected yet. Set it up in Administration → Email & WhatsApp.'
-                : 'WhatsApp is not set up yet. Set it up in Administration → Email & WhatsApp.');
+                ? 'No email server is connected yet. Set it up in Administration → Email, WhatsApp & SMS.'
+                : ($this->channel === 'sms' ? 'SMS' : 'WhatsApp').' is not set up yet. Set it up in Administration → Email, WhatsApp & SMS.');
 
             return;
         }
 
-        $this->validate($this->rules(), ['whatsappTemplate.regex' => 'A template name uses small letters, numbers and underscores only.',
+        $this->validate($this->rules(), ['whatsappTemplate.regex' => $this->channel === 'sms' ? 'A template ID uses letters, numbers, hyphens and underscores only.' : 'A template name uses small letters, numbers and underscores only.',
             'whatsappTemplate.required' => 'Enter the name of the template approved in WhatsApp Manager.'], $this->labels());
         $clients = $this->split()[0]->reject(fn ($c) => in_array((string) $c->id, array_map('strval', $this->excluded), true))->values();
         if ($clients->isEmpty()) {
@@ -148,7 +149,7 @@ class Compose extends Component
         $campaign = DB::transaction(function () use ($clients) {
             $campaign = Campaign::create([
                 'name' => trim($this->name), 'channel' => $this->channel, 'subject' => $this->channel === 'email' ? trim($this->subject) : null,
-                'body' => $this->body, 'whatsapp_template' => $this->needsTemplate() ? $this->whatsappTemplate : null,
+                'body' => $this->body, 'whatsapp_template' => ($this->needsTemplate() || $this->channel === 'sms') && $this->whatsappTemplate !== '' ? $this->whatsappTemplate : null,
                 'status' => 'sending', 'total' => $clients->count(), 'created_by' => auth()->id(),
             ]);
             $now = now();

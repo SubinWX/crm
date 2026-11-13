@@ -341,6 +341,8 @@
             <section id="search" class="card p-5 text-sm leading-relaxed text-stone-700">
                 <h2>Search, and using the CRM on a phone</h2>
                 <ul>
+                    <li><strong>Needs your attention</strong> — the highlighted box at the top of the dashboard lists what is waiting for you: unread notifications and chat messages, your overdue and open tasks, leave waiting for approval, a reminder to check in, and (where you have access) open support tickets, lead follow-ups, new job applications, overdue invoices and renewals due within 7 days. Click a line to open it. When nothing is waiting it says you are all caught up.</li>
+                    <li><strong>Profile pictures</strong> — after choosing a picture you can drag and zoom it inside a circle, then press <em>Use this crop</em>.</li>
                     <li><strong>Search</strong> — the box in the top bar finds clients, projects, tasks, invoices, leads, quotes, support tickets and people in one go. Type two or more letters, a phone number or an invoice number. Press <kbd>/</kbd> to jump to it. You only get results from the areas you can open.</li>
                     <li><strong>On a phone</strong> — open the same address in the phone’s browser. The menu is behind the ☰ button and search behind the magnifier. The dashboard shows three shortcuts: <em>Check in / out</em>, <em>Apply for leave</em> and <em>Timesheet</em>. Wide tables scroll sideways.</li>
                 </ul>
@@ -349,13 +351,14 @@
             @if ($can('admin'))
                 <section id="bulk" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Bulk messages</h2>
-                    <p><strong>Clients → Bulk Messages</strong> sends one email or WhatsApp message to a chosen group of clients: festival greetings, an offer, a renewal notice.</p>
+                    <p><strong>Clients → Bulk Messages</strong> sends one email, WhatsApp message or text message (SMS) to a chosen group of clients: festival greetings, an offer, a renewal notice.</p>
                     <ul>
                         <li><strong>Write it once.</strong> <code>{client}</code>, <code>{contact}</code> and <code>{company}</code> are filled in for each client. The preview shows the first client’s copy.</li>
                         <li><strong>Choose who gets it</strong> by status, industry, work type or an upcoming renewal, then untick anyone you want to leave out. Archived clients, clients with no email or mobile number, and clients who asked not to receive bulk messages are never included.</li>
                         <li><strong>Send a test to yourself</strong> (email), then press Send. Messages go out one after another; the list shows Sent, Failed or Skipped for each client, and failed ones can be sent again.</li>
                         <li><strong>Stopping:</strong> every bulk email has a “Stop these emails” link. You can also tick <em>Do not send bulk messages</em> on a client’s edit page. Invoice and renewal reminders are not affected.</li>
-                        <li><strong>WhatsApp through Meta</strong> only delivers messages that use a template approved in WhatsApp Manager, so you enter that template’s name. Email and WhatsApp must first be connected in <strong>Administration → Email &amp; WhatsApp</strong>.</li>
+                        <li><strong>Text messages (SMS)</strong> work once an SMS service is connected in <strong>Administration → Email, WhatsApp &amp; SMS</strong>. Any service with an HTTP API can be used. In India the sender ID and each template must be registered on a DLT portal, so enter the template’s ID and keep the wording exactly as registered.</li>
+                        <li><strong>WhatsApp through Meta</strong> only delivers messages that use a template approved in WhatsApp Manager, so you enter that template’s name. Email and WhatsApp must first be connected in <strong>Administration → Email, WhatsApp &amp; SMS</strong>.</li>
                     </ul>
                 </section>
             @endif
@@ -407,7 +410,7 @@
                     <p><strong>Administration → PDF Settings</strong> sets the logo, header, footer, page border, table style and accent colour used on every PDF: invoices, quotes and reports. Use <strong>View sample PDF</strong> to check the result before sending anything to a client.</p>
                     <h3>Email and WhatsApp</h3>
                     <p><strong>WhatsApp button.</strong> Open invoices, renewals and hosting records each have a <strong>WhatsApp</strong> button. It opens WhatsApp with the reminder already typed for that client, and you press send. It goes from whichever WhatsApp account is signed in on your computer or phone, and works without any API. If the client has no mobile number saved, WhatsApp asks you to choose the contact. Once the WhatsApp API is connected, invoices also get <strong>Send WhatsApp reminder</strong>, which sends it for you, and reminders go out automatically.</p>
-                    <p><strong>Administration → Email &amp; WhatsApp</strong> connects the email mailbox you bought (so invitations, reminders and replies are really sent) and your WhatsApp Business API (so clients get renewal and payment reminders on WhatsApp). Each has a <strong>Send test</strong> button, and every WhatsApp message is listed at the bottom with whether it went through.</p>
+                    <p><strong>Administration → Email, WhatsApp &amp; SMS</strong> connects the email mailbox you bought (so invitations, reminders and replies are really sent) and your WhatsApp Business API (so clients get renewal and payment reminders on WhatsApp). Each has a <strong>Send test</strong> button, and every WhatsApp message is listed at the bottom with whether it went through.</p>
                     <h3>Settings</h3>
                     <ul>
                         <li><strong>General</strong> — currency, time zone, company details for invoices, invoice defaults, renewal reminder days.</li>

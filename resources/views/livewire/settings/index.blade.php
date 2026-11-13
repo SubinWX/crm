@@ -5,7 +5,7 @@
         <nav class="card h-fit p-2 text-sm" aria-label="Settings sections">
             <button type="button" wire:click="setTab('general')" @class(['block w-full cursor-pointer rounded-md px-3 py-2 text-left', 'bg-brand-50 font-semibold text-brand-800' => $tab === 'general', 'text-stone-700 hover:bg-stone-50' => $tab !== 'general'])>General</button>
             <button type="button" wire:click="setTab('branding')" @class(['block w-full cursor-pointer rounded-md px-3 py-2 text-left', 'bg-brand-50 font-semibold text-brand-800' => $tab === 'branding', 'text-stone-700 hover:bg-stone-50' => $tab !== 'branding'])>Branding</button>
-            <a href="{{ route('settings.messaging') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">Email &amp; WhatsApp →</a>
+            <a href="{{ route('settings.messaging') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">Email, WhatsApp &amp; SMS →</a>
             <a href="{{ route('settings.public-pages') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">Public Pages →</a>
             <a href="{{ route('settings.pdf') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">PDF Settings →</a>
             <a href="{{ route('quote-templates.index') }}" class="block rounded-md px-3 py-2 text-stone-700 hover:bg-stone-50">Quote Templates →</a>

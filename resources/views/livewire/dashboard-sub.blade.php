@@ -3,6 +3,8 @@
         <a href="{{ route('clients.create') }}" class="btn-primary"><x-icon name="plus" /> New Client</a>
     </x-page-header>
 
+    <x-pending-items />
+
     <div class="mb-5 grid gap-4 sm:grid-cols-3">
         <x-stat label="Clients you added" :value="$total" :href="route('clients.index')" />
         <x-stat label="Added this month" :value="$thisMonth" :hint="today_local()->format('F Y')" />

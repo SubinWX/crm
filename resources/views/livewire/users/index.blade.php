@@ -129,7 +129,7 @@
     @if ($showForm)
         <x-modal :title="$editingId ? 'Edit user' : 'Add user'" size="max-w-xl">
             <form wire:submit="save" class="grid gap-4 md:grid-cols-2">
-                <x-field label="Headshot" name="photo" hint="JPG, PNG or WebP, up to 2 MB. A square photo works best." class="md:col-span-2">
+                <x-field label="Headshot" name="photo" hint="JPG, PNG or WebP. After choosing a picture you can crop it before it is saved." class="md:col-span-2">
                     @php $editingUser = $editingId ? $users->firstWhere('id', $editingId) : null; @endphp
                     <div class="flex flex-wrap items-center gap-4">
                         @if ($photo && ! $errors->has('photo'))
@@ -138,8 +138,7 @@
                             <x-avatar :src="$removePhoto ? null : $editingUser?->avatarUrl()" :name="$form['name']" size="size-16" class="text-base" />
                         @endif
                         <div class="min-w-56 flex-1">
-                            <input type="file" class="input" accept="image/png,image/jpeg,image/webp" wire:model="photo" aria-label="Headshot">
-                            <p wire:loading wire:target="photo" class="mt-1 text-xs text-stone-500">Uploading…</p>
+                            <x-photo-cropper model="photo" label="Headshot" />
                         </div>
                         @if ($editingUser?->avatar_path && ! $photo)
                             <label class="flex items-center gap-2 text-sm text-stone-600"><input type="checkbox" class="rounded border-stone-300" wire:model.live="removePhoto"> Remove photo</label>

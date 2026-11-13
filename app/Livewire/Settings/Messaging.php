@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\MessageLog;
 use App\Models\Setting;
 use App\Support\MailSettings;
+use App\Support\Sms;
 use App\Support\WhatsApp;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
@@ -13,7 +14,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 /** Settings → Email & WhatsApp: connect the outgoing email server and the WhatsApp API. Super Admins only. */
-#[Title('Email & WhatsApp')]
+#[Title('Email, WhatsApp & SMS')]
 class Messaging extends Component
 {
     public array $mail = [];
@@ -32,6 +33,16 @@ class Messaging extends Component
     public string $testPhone = '';
 
     public ?array $waResult = null;
+
+    public array $sms = [];
+
+    public string $smsToken = '';
+
+    public string $testSmsPhone = '';
+
+    public string $testSmsTemplate = '';
+
+    public ?array $smsResult = null;
 
     public function boot(): void
     {
@@ -53,6 +64,10 @@ class Messaging extends Component
         foreach (['whatsapp_enabled', 'whatsapp_send_hosting', 'whatsapp_send_renewal', 'whatsapp_send_invoice'] as $key) {
             $this->wa[$key] = $this->wa[$key] === '1' ? '1' : '0';
         }
+        foreach (Sms::FIELDS as $key) {
+            $this->sms[$key] = Sms::get($key);
+        }
+        $this->sms['sms_enabled'] = $this->sms['sms_enabled'] === '1' ? '1' : '0';
         $this->testEmail = (string) auth()->user()->email;
     }
 
@@ -194,6 +209,82 @@ class Messaging extends Component
             : ['ok' => false, 'message' => $result['error']];
     }
 
+    /** A provider address must be a public https one: keys are never sent over plain http or to this server's own network. */
+    protected function publicAddress(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            $host = strtolower((string) parse_url((string) $value, PHP_URL_HOST));
+            if (! str_starts_with(strtolower((string) $value), 'https://') || $host === '' || $host === 'localhost' || str_ends_with($host, '.local') || str_ends_with($host, '.internal')
+                || (filter_var($host, FILTER_VALIDATE_IP) && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE))) {
+                $fail('Enter the public https address of your SMS provider.');
+            }
+        };
+    }
+
+    public function saveSms(): void
+    {
+        $on = $this->sms['sms_enabled'] === '1';
+        $get = $this->sms['sms_method'] === 'get';
+
+        $this->validate([
+            'sms.sms_enabled' => ['required', Rule::in(['0', '1'])],
+            'sms.sms_method' => ['required', Rule::in(array_keys(Sms::METHODS))],
+            'sms.sms_url' => [Rule::requiredIf($on), 'nullable', 'string', 'max:1000', $this->publicAddress(), function ($attribute, $value, $fail) use ($get) {
+                if ($get && (! str_contains((string) $value, '{phone}') || ! str_contains((string) $value, '{message}'))) {
+                    $fail('With GET, the address must contain both {phone} and {message}.');
+                }
+            }],
+            'sms.sms_auth_header' => ['required', 'regex:/^[A-Za-z0-9\-]{1,60}$/'],
+            'sms.sms_body' => ['required', 'string', 'max:2000', function ($attribute, $value, $fail) use ($get) {
+                if ($get) {
+                    return;
+                }
+                if (! is_array(json_decode(strtr((string) $value, array_fill_keys(Sms::PLACEHOLDERS, 'x')), true))) {
+                    $fail('The request body must be valid JSON.');
+                } elseif (! str_contains((string) $value, '{phone}') || ! str_contains((string) $value, '{message}')) {
+                    $fail('The request body must contain both {phone} and {message}.');
+                }
+            }],
+            'sms.sms_sender_id' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
+            'smsToken' => ['nullable', 'string', 'max:2000'],
+        ], ['sms.sms_auth_header.regex' => 'A header name uses letters, numbers and hyphens only.', 'sms.sms_sender_id.regex' => 'A sender ID uses letters and numbers only, for example WXAGNC.'],
+            ['sms.sms_url' => 'API address', 'sms.sms_auth_header' => 'header name', 'sms.sms_body' => 'request body', 'sms.sms_sender_id' => 'sender ID', 'smsToken' => 'API key']);
+
+        foreach (Sms::FIELDS as $key) {
+            Setting::put($key, trim((string) $this->sms[$key]));
+        }
+        if ($this->smsToken !== '') {
+            MailSettings::putSecret('sms_token', trim($this->smsToken));
+            $this->smsToken = '';
+        }
+        $this->smsResult = null;
+
+        activity('updated', 'SMS settings updated');
+        $this->dispatch('toast', message: 'SMS settings saved.');
+    }
+
+    public function removeSmsToken(): void
+    {
+        MailSettings::putSecret('sms_token', null);
+        $this->dispatch('toast', message: 'Saved SMS key removed.');
+    }
+
+    public function sendTestSms(): void
+    {
+        $this->validate(['testSmsPhone' => ['required', 'string', 'max:25'], 'testSmsTemplate' => ['nullable', 'string', 'max:60']], [], ['testSmsPhone' => 'mobile number', 'testSmsTemplate' => 'template ID']);
+        $to = WhatsApp::normalizePhone($this->testSmsPhone);
+        if (! $to) {
+            $this->addError('testSmsPhone', 'Enter a mobile number with its country code, for example +91 98765 43210.');
+
+            return;
+        }
+
+        $result = Sms::send($to, 'Test message from '.(setting('company_name') ?: app_name()).'. SMS is connected.', trim($this->testSmsTemplate) ?: null);
+        $this->smsResult = $result['ok']
+            ? ['ok' => true, 'message' => "Accepted by the SMS service for +{$to}. It should arrive within a minute."]
+            : ['ok' => false, 'message' => $result['error']];
+    }
+
     public function render()
     {
         return view('livewire.settings.messaging', [
@@ -202,6 +293,9 @@ class Messaging extends Component
             'mailSummary' => MailSettings::summary(),
             'waMissing' => WhatsApp::missing(),
             'waLive' => WhatsApp::enabled(),
+            'hasSmsToken' => filled(MailSettings::secret('sms_token')),
+            'smsMissing' => Sms::missing(),
+            'smsLive' => Sms::enabled(),
             'recent' => MessageLog::with('client')->latest()->latest('id')->limit(15)->get(),
         ]);
     }

@@ -1,5 +1,5 @@
 <div>
-    <x-page-header title="Email & WhatsApp" subtitle="Connect the email server and WhatsApp service you have bought, so messages reach your team and clients.">
+    <x-page-header title="Email, WhatsApp & SMS" subtitle="Connect the email server, WhatsApp service and SMS service you have bought, so messages reach your team and clients.">
         <a href="{{ route('settings.index') }}" class="btn-secondary">← Settings</a>
     </x-page-header>
 
@@ -124,6 +124,60 @@
                 </div>
                 <p class="mt-1 text-xs text-stone-500">Save first. With Meta, a plain test only arrives if that number messaged your business number in the last 24 hours.</p>
                 @if ($waResult) <p @class(['mt-2 rounded-md p-3 text-sm break-words', 'bg-emerald-50 text-emerald-800' => $waResult['ok'], 'bg-red-50 text-red-800' => ! $waResult['ok']]) role="status">{{ $waResult['message'] }}</p> @endif
+            </div>
+        </form>
+
+        {{-- -------------------------------------------------------------- SMS --}}
+        <form wire:submit="saveSms" class="card">
+            <div class="card-header">
+                <h2 class="card-title">Text messages (SMS)</h2>
+                @if ($smsLive) <span class="badge-green">Connected</span> @elseif ($sms['sms_enabled'] === '1') <span class="badge-amber">Missing: {{ implode(', ', $smsMissing) }}</span> @else <span class="badge-gray">Off</span> @endif
+            </div>
+            <div class="grid gap-4 p-4 sm:p-5 md:grid-cols-2">
+                <p class="rounded-md bg-stone-50 p-3 text-sm text-stone-600 md:col-span-2">Used by <strong>Clients → Bulk Messages</strong> to send a text message to selected clients. It works with any SMS service that has an HTTP API (MSG91, Textlocal, Fast2SMS, Twilio and others): copy the address and key from that service’s API page. In India the sender ID and each message template must be registered on a DLT portal first, or the operators block the message.</p>
+                <x-field label="Text messages" name="sms.sms_enabled">
+                    <select class="input" wire:model.live="sms.sms_enabled"><option value="0">Off</option><option value="1">On</option></select>
+                </x-field>
+                <x-field label="How the service is called" name="sms.sms_method" hint="Your SMS service’s API page shows which one it uses.">
+                    <select class="input" wire:model.live="sms.sms_method">
+                        @foreach (\App\Support\Sms::METHODS as $key => $label) <option value="{{ $key }}">{{ $label }}</option> @endforeach
+                    </select>
+                </x-field>
+                <x-field label="API address" name="sms.sms_url" :required="$sms['sms_enabled'] === '1'" class="md:col-span-2"
+                         :hint="$sms['sms_method'] === 'get' ? 'The full address with {phone} and {message} in it, and {token}, {sender} and {template_id} where the service expects them. Example: https://api.example.com/send?apikey={token}&sender={sender}&to={phone}&text={message}&template={template_id}' : 'The address messages are posted to, starting with https://'">
+                    <input class="input font-mono text-xs" type="text" wire:model="sms.sms_url" placeholder="https://">
+                </x-field>
+                @if ($sms['sms_method'] !== 'get')
+                    <x-field label="Header that carries the key" name="sms.sms_auth_header" hint="Usually Authorization; some services use authkey or X-API-Key.">
+                        <input class="input" type="text" wire:model="sms.sms_auth_header">
+                    </x-field>
+                @endif
+                <x-field label="Sender ID" name="sms.sms_sender_id" hint="The registered name messages come from, e.g. WXAGNC.">
+                    <input class="input" type="text" wire:model="sms.sms_sender_id">
+                </x-field>
+                <x-field label="API key" name="smsToken" class="md:col-span-2" :hint="$hasSmsToken ? 'A key is saved. Leave empty to keep it.' : ($sms['sms_method'] === 'get' ? 'Put {token} in the address where the key goes. Stored encrypted.' : 'Exactly as the header should carry it, e.g. “Bearer abc123”. Stored encrypted.')">
+                    <div class="flex gap-2">
+                        <input class="input" type="password" wire:model="smsToken" autocomplete="new-password" placeholder="{{ $hasSmsToken ? '•••••••• (saved)' : '' }}">
+                        @if ($hasSmsToken) <button type="button" class="btn-ghost btn-sm text-red-700" wire:click="removeSmsToken" wire:confirm="Remove the saved SMS key? Text messages stop until a new one is added.">Remove</button> @endif
+                    </div>
+                </x-field>
+                @if ($sms['sms_method'] !== 'get')
+                    <x-field label="Request body (JSON)" name="sms.sms_body" class="md:col-span-2" hint="Must contain {phone} and {message}. {sender} and {template_id} are filled in too. Change the names on the left to what your service expects.">
+                        <textarea class="input font-mono text-xs" rows="3" wire:model="sms.sms_body"></textarea>
+                    </x-field>
+                @endif
+                <div class="flex justify-end md:col-span-2"><button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="saveSms">Save SMS settings</button></div>
+            </div>
+
+            <div class="border-t border-stone-200 p-4 sm:p-5">
+                <p class="label">Send a test text message</p>
+                <div class="flex flex-wrap items-start gap-2">
+                    <div class="w-full max-w-xs"><input class="input" type="tel" wire:model="testSmsPhone" placeholder="+91 98765 43210" aria-label="Send the test text message to">@error('testSmsPhone') <p class="field-error">{{ $message }}</p> @enderror</div>
+                    <div class="w-full max-w-xs"><input class="input" type="text" wire:model="testSmsTemplate" placeholder="Template ID (if your service needs one)" aria-label="Template ID"></div>
+                    <button type="button" class="btn-secondary" wire:click="sendTestSms" wire:loading.attr="disabled" wire:target="sendTestSms"><span wire:loading.remove wire:target="sendTestSms">Send test</span><span wire:loading wire:target="sendTestSms">Sending…</span></button>
+                </div>
+                <p class="mt-1 text-xs text-stone-500">Save first. With DLT, a test only arrives if its wording matches a registered template.</p>
+                @if ($smsResult) <p @class(['mt-2 rounded-md p-3 text-sm break-words', 'bg-emerald-50 text-emerald-800' => $smsResult['ok'], 'bg-red-50 text-red-800' => ! $smsResult['ok']]) role="status">{{ $smsResult['message'] }}</p> @endif
             </div>
         </form>
 

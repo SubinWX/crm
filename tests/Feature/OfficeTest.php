@@ -10,15 +10,21 @@ use App\Livewire\Office\MeetingNotes;
 use App\Livewire\Office\Policies;
 use App\Livewire\Office\Roadmap;
 use App\Models\AssistantMessage;
+use App\Models\AttendanceRecord;
 use App\Models\ChatMessage;
+use App\Models\Client;
 use App\Models\Document;
+use App\Models\LeaveRequest;
+use App\Models\Lookup;
 use App\Models\MeetingNote;
 use App\Models\Policy;
 use App\Models\RoadmapItem;
 use App\Models\Setting;
+use App\Models\Task;
 use App\Models\User;
 use App\Support\Assistant;
 use App\Support\MailSettings;
+use App\Support\PendingItems;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -264,5 +270,37 @@ class OfficeTest extends TestCase
         Livewire::actingAs($this->ravi)->test(AssistantPage::class)->call('removeKey')->assertForbidden();
         Livewire::actingAs($this->admin)->test(AssistantPage::class)->call('removeKey');
         $this->assertFalse(Assistant::enabled());
+    }
+
+    public function test_the_dashboard_highlights_what_is_waiting_for_each_person(): void
+    {
+        // Thursday 12 Nov 2026, a working day: nobody has checked in yet.
+        $this->actingAs($this->ravi)->get('/')->assertOk()->assertSee('Needs your attention')->assertSee('You have not checked in today')->assertDontSee('leave request to approve');
+
+        $client = Client::create(['name' => 'Kerala Traders']);
+        $task = Task::create(['title' => 'Send banner', 'client_id' => $client->id, 'status' => 'open', 'due_date' => '2026-11-01']);
+        $task->assignTo([$this->ravi->id]);
+        Task::create(['title' => 'Later task', 'client_id' => $client->id, 'status' => 'open', 'due_date' => '2026-12-01'])->assignTo([$this->ravi->id]);
+        $type = Lookup::where('type', 'leave_type')->where('code', 'CL')->firstOrFail();
+        LeaveRequest::create(['user_id' => $this->ravi->id, 'leave_type_id' => $type->id, 'from_date' => '2026-11-20', 'to_date' => '2026-11-20', 'days' => 1, 'day_part' => 'full', 'reason' => 'x', 'status' => 'pending']);
+        ChatMessage::create(['sender_id' => $this->admin->id, 'recipient_id' => $this->ravi->id, 'body' => 'Hi']);
+        AttendanceRecord::create(['user_id' => $this->ravi->id, 'date' => '2026-11-12', 'status' => 'present', 'check_in' => '09:30:00']);
+
+        $labels = fn (User $u) => array_column(PendingItems::for($u->fresh()), 'count', 'label');
+        // Staff: their own things only, and the check-in reminder is gone once they are in.
+        $this->assertSame(['task of yours is overdue' => 1, 'unread chat message' => 1, 'leave request of yours waiting for approval' => 1, 'open task assigned to you' => 1], $labels($this->ravi));
+        $this->actingAs($this->ravi)->get('/')->assertSee('task of yours is overdue')->assertSee('unread chat message')->assertDontSee('You have not checked in today');
+        // A manager is told about the request to approve; a Super Admin as well.
+        $this->assertSame(1, $labels($this->hr)['leave request to approve']);
+        $this->assertArrayNotHasKey('leave request of yours waiting for approval', $labels($this->hr));
+        $this->actingAs($this->admin)->get('/')->assertSee('leave request to approve');
+        // Admins have a small dashboard; it shows the panel too, limited to what they can open.
+        $this->actingAs($this->subAdmin)->get('/')->assertOk()->assertSee('You are all caught up');
+        ChatMessage::create(['sender_id' => $this->admin->id, 'recipient_id' => null, 'body' => 'Team update']);
+        $this->actingAs($this->subAdmin)->get('/')->assertSee('Needs your attention')->assertSee('unread chat message')->assertDontSee('checked in');
+
+        // On a weekly off nobody is asked to check in.
+        $this->travelTo('2026-11-15 06:00:00');   // Sunday
+        $this->assertArrayNotHasKey('You have not checked in today', $labels($this->meera));
     }
 }

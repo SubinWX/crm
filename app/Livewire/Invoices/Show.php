@@ -46,7 +46,7 @@ class Show extends Component
     {
         abort_unless(in_array($this->invoice->status, Invoice::OPEN_STATUSES, true), 422);
         if (! WhatsApp::enabled()) {
-            $this->dispatch('toast', message: 'WhatsApp is not connected yet. A Super Admin can set it up in Settings → Email & WhatsApp.');
+            $this->dispatch('toast', message: 'WhatsApp is not connected yet. A Super Admin can set it up in Settings → Email, WhatsApp & SMS.');
 
             return;
         }

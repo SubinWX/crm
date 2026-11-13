@@ -9,6 +9,8 @@
         @can('posters.manage') <a href="{{ route('posters.index', ['upload' => 1]) }}" class="btn-secondary">Upload Poster</a> @endcan
     </x-page-header>
 
+    <x-pending-items />
+
     {{-- Phone: the things people do from their phone, one tap away. --}}
     @can('workspace')
         <div class="mb-5 grid grid-cols-3 gap-2 sm:hidden">

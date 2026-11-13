@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Casts\RichTextCast;
 use App\Support\MailSettings;
+use App\Support\Sms;
 use App\Support\WhatsApp;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** A bulk message: festival greetings, an offer or a renewal notice sent to a chosen group of clients by email or WhatsApp. */
 class Campaign extends Model
 {
-    public const CHANNELS = ['email' => 'Email', 'whatsapp' => 'WhatsApp'];
+    public const CHANNELS = ['email' => 'Email', 'whatsapp' => 'WhatsApp', 'sms' => 'Text message (SMS)'];
 
     /** Words in curly brackets that are replaced for each client. */
     public const PLACEHOLDERS = ['{client}' => 'the client’s name', '{contact}' => 'the contact person (or the client’s name)', '{company}' => 'your company name'];
@@ -32,13 +33,17 @@ class Campaign extends Model
     /** Whether messages on this channel can actually leave the building. */
     public static function channelReady(string $channel): bool
     {
-        return $channel === 'whatsapp' ? WhatsApp::enabled() : (MailSettings::enabled() || config('mail.default') !== 'log');
+        return match ($channel) {
+            'whatsapp' => WhatsApp::enabled(),
+            'sms' => Sms::enabled(),
+            default => MailSettings::enabled() || config('mail.default') !== 'log',
+        };
     }
 
     /** Where a client is reached on a channel: their email address, or their mobile number with country code. Null when there is none. */
     public static function addressFor(Client $client, string $channel): ?string
     {
-        if ($channel === 'whatsapp') {
+        if ($channel === 'whatsapp' || $channel === 'sms') {
             return WhatsApp::normalizePhone($client->phone1) ?? WhatsApp::normalizePhone($client->phone2);
         }
         foreach ([$client->email, $client->billing_contact_email] as $email) {

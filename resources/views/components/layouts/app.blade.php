@@ -69,7 +69,7 @@
                 ['staff.index', 'Staff', 'users', $user->can('staff.manage'), 'staff.index'],
                 ['activity.index', 'Activity Log', 'clock', $user->can('admin'), 'activity.*'],
                 ['settings.index', 'Settings', 'cog', $user->can('admin'), ['settings.index', 'quote-templates.*']],
-                ['settings.messaging', 'Email & WhatsApp', 'bell', $user->can('admin'), 'settings.messaging'],
+                ['settings.messaging', 'Email, WhatsApp & SMS', 'bell', $user->can('admin'), 'settings.messaging'],
                 ['settings.public-pages', 'Public Pages', 'document', $user->can('admin'), 'settings.public-pages'],
                 ['settings.pdf', 'PDF Settings', 'document', $user->can('admin'), 'settings.pdf*'],
             ]],

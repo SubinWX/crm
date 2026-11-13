@@ -63,7 +63,7 @@
     @endif
 
     @if ($modal === 'picture')
-        <x-modal title="Change Picture" size="max-w-md">
+        <x-modal title="Change Picture" size="max-w-2xl">
             <form wire:submit="savePicture" class="space-y-4">
                 <div class="flex items-center gap-4">
                     @if ($photo && ! $errors->has('photo'))
@@ -71,11 +71,10 @@
                     @else
                         <x-avatar :src="$user->avatarUrl()" :name="$user->name" size="size-20" class="text-xl" />
                     @endif
-                    <p class="text-sm text-stone-600">JPG, PNG or WebP, up to 2 MB.<br>A square photo works best.</p>
+                    <p class="text-sm text-stone-600">JPG, PNG or WebP.<br>Choose a picture, crop it, then save.</p>
                 </div>
                 <x-field name="photo">
-                    <input type="file" class="input" accept="image/png,image/jpeg,image/webp" wire:model="photo" aria-label="Profile picture">
-                    <p wire:loading wire:target="photo" class="mt-1 text-xs text-stone-500">Uploading…</p>
+                    <x-photo-cropper model="photo" label="Profile picture" />
                 </x-field>
                 <div class="flex items-center justify-between gap-2">
                     @if ($user->avatar_path)

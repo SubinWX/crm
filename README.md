@@ -93,7 +93,7 @@ demo users (`admin@example.test`, `partner@example.test`, `staff@example.test`, 
 
 ## Email, WhatsApp, two-step login and GST
 
-**Email server.** *Settings → Email & WhatsApp* lets a Super Admin connect an SMTP mailbox (host, port,
+**Email server.** *Settings → Email, WhatsApp & SMS* lets a Super Admin connect an SMTP mailbox (host, port,
 security, username, password, from address) without editing `.env`. The password is stored encrypted.
 When switched on it replaces the `.env` mail settings, and the queue worker picks the change up before its
 next job. "Send test" delivers immediately and shows any error from the server.

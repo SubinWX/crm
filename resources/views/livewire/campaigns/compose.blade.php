@@ -5,8 +5,8 @@
 
     @unless ($ready)
         <div class="mb-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <strong>{{ $channel === 'email' ? 'No email server is connected yet.' : 'WhatsApp is not set up yet.' }}</strong>
-            You can write the message, but it cannot be sent until this is set up in <a href="{{ route('settings.messaging') }}" class="underline">Administration → Email &amp; WhatsApp</a>.
+            <strong>{{ ['email' => 'No email server is connected yet.', 'sms' => 'No SMS service is connected yet.'][$channel] ?? 'WhatsApp is not set up yet.' }}</strong>
+            You can write the message, but it cannot be sent until this is set up in <a href="{{ route('settings.messaging') }}" class="underline">Administration → Email, WhatsApp &amp; SMS</a>.
         </div>
     @endunless
 
@@ -33,8 +33,14 @@
                             <input class="input" type="text" wire:model.blur="whatsappTemplate" placeholder="e.g. festival_greeting">
                         </x-field>
                     @endif
-                    <x-field label="Message" name="body" required class="mt-4" hint="Plain text, up to 1,500 characters.">
-                        <textarea class="input" rows="7" wire:model.blur="body" placeholder="Hello {contact}, …"></textarea>
+                    @if ($channel === 'sms')
+                        <x-field label="DLT template ID" name="whatsappTemplate" class="mt-4" hint="The ID of the registered template this message matches. Needed by most Indian SMS services; leave empty if yours does not use one.">
+                            <input class="input" type="text" wire:model.blur="whatsappTemplate" placeholder="e.g. 1107161234567890123">
+                        </x-field>
+                    @endif
+                    <x-field label="Message" name="body" required class="mt-4" :hint="$channel === 'sms' ? 'Plain text, up to 640 characters. One text message holds 160; longer ones are charged as several. With DLT, the wording must match the registered template exactly.' : 'Plain text, up to 1,500 characters.'">
+                        <textarea class="input" rows="{{ $channel === 'sms' ? 4 : 7 }}" wire:model.live.debounce.400ms="body" placeholder="Hello {contact}, …"></textarea>
+                        @if ($channel === 'sms') <p class="mt-1 text-xs text-stone-500">{{ mb_strlen($body) }} characters · about {{ max(1, (int) ceil(mb_strlen($body) / 153)) }} {{ mb_strlen($body) > 160 ? 'text messages' : 'text message' }} per client</p> @endif
                     </x-field>
                 @endif
                 <p class="mt-2 text-xs text-stone-500">Filled in for each client:
@@ -111,7 +117,7 @@
                     <button type="button" class="btn-secondary w-full justify-center" wire:click="sendTest" wire:loading.attr="disabled" wire:target="sendTest">Send a test to me</button>
                 @endif
                 <button type="submit" class="btn-primary w-full justify-center" wire:loading.attr="disabled" wire:target="send" @disabled(! $ready || $selectedCount === 0)
-                        wire:confirm="Send this {{ $channel === 'email' ? 'email' : 'WhatsApp message' }} to {{ $selectedCount }} {{ $selectedCount === 1 ? 'client' : 'clients' }} now? It cannot be taken back.">
+                        wire:confirm="Send this {{ ['email' => 'email', 'sms' => 'text message'][$channel] ?? 'WhatsApp message' }} to {{ $selectedCount }} {{ $selectedCount === 1 ? 'client' : 'clients' }} now? It cannot be taken back.">
                     Send to {{ $selectedCount }} {{ $selectedCount === 1 ? 'client' : 'clients' }}
                 </button>
             </div>

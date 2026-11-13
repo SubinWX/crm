@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Mail\CampaignMail;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Support\Sms;
 use App\Support\WhatsApp;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -40,6 +41,10 @@ class SendCampaignMessage implements ShouldQueue
             if ($campaign->channel === 'whatsapp') {
                 $result = WhatsApp::send($recipient->recipient, Campaign::personalise($campaign->body, $client),
                     filled($campaign->whatsapp_template) ? ['template' => $campaign->whatsapp_template, 'values' => [Campaign::personalise('{contact}', $client)]] : []);
+                $recipient->update($result['ok'] ? ['status' => 'sent', 'sent_at' => now(), 'error' => null] : ['status' => 'failed', 'error' => $result['error']]);
+            } elseif ($campaign->channel === 'sms') {
+                // The template column holds the DLT template ID for a text message.
+                $result = Sms::send($recipient->recipient, Campaign::personalise($campaign->body, $client), $campaign->whatsapp_template);
                 $recipient->update($result['ok'] ? ['status' => 'sent', 'sent_at' => now(), 'error' => null] : ['status' => 'failed', 'error' => $result['error']]);
             } else {
                 Mail::to($recipient->recipient)->send(CampaignMail::for($campaign, $client));
