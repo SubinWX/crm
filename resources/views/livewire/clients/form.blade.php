@@ -38,6 +38,10 @@
                         @foreach (\App\Models\Client::CHANNELS as $key => $label) <option value="{{ $key }}">{{ $label }}</option> @endforeach
                     </select>
                 </x-field>
+                <label class="flex items-start gap-2 self-end pb-2 text-sm text-stone-700">
+                    <input type="checkbox" class="mt-0.5" wire:model="bulkOptOut">
+                    <span>Do not send bulk messages <span class="block text-xs text-stone-500">Greetings and offers. Invoice and renewal reminders still go out.</span></span>
+                </label>
                 <x-field label="Billing address" name="form.billing_address" class="md:col-span-2 xl:col-span-3"><textarea class="input" rows="2" wire:model="form.billing_address"></textarea></x-field>
             </div>
         </section>

@@ -23,7 +23,7 @@ class Client extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['join_date' => 'date', 'archived_at' => 'datetime', 'notes' => RichTextCast::class];
+    protected $casts = ['join_date' => 'date', 'archived_at' => 'datetime', 'bulk_opt_out_at' => 'datetime', 'notes' => RichTextCast::class];
 
     public function industry(): BelongsTo
     {

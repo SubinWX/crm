@@ -13,6 +13,7 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SupportAttachmentController;
 use App\Livewire;
+use App\Models\Client;
 use App\Support\InvoicePdf;
 use Illuminate\Support\Facades\Route;
 
@@ -170,6 +171,8 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
 
     // Administration: Super Admins only
     Route::middleware('can:admin')->group(function () {
+        Route::get('/bulk-messages', Livewire\Campaigns\Index::class)->name('campaigns.index');
+        Route::get('/bulk-messages/new', Livewire\Campaigns\Compose::class)->name('campaigns.create');
         Route::get('/users', Livewire\Users\Index::class)->name('users.index');
         Route::get('/settings', Livewire\Settings\Index::class)->name('settings.index');
         Route::get('/settings/email-whatsapp', Livewire\Settings\Messaging::class)->name('settings.messaging');
@@ -189,6 +192,15 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
 |--------------------------------------------------------------------------
 | No sign-in. Lists open vacancies; each has its own page with an application form.
 */
+// The "stop these emails" link at the bottom of a bulk email. Signed, so only the link in the client's own email works.
+Route::get('/stop-emails/{client}', function (Client $client) {
+    $client->bulk_opt_out_at ?? $client->forceFill(['bulk_opt_out_at' => now()])->saveQuietly();
+
+    return response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Emails stopped</title>'
+        .'<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;color:#1c1917"><h1 style="font-size:1.25rem">You will not get these emails any more</h1>'
+        .'<p style="color:#57534e">We have stopped greetings and offers to '.e($client->name).'. Messages about your own invoices and renewals will still reach you.</p></body>');
+})->middleware('signed')->name('bulk.unsubscribe');
+
 Route::get('/careers', Livewire\Careers\Listing::class)->name('careers.index');
 // Headshots uploaded for email signatures. Public on purpose: the people who receive the email must be able to load them.
 // The 40-character random name is the only way to reach a file.

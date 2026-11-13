@@ -35,6 +35,9 @@ class Form extends Component
         'tax_id' => '', 'state_code' => '', 'preferred_channel' => '',
     ];
 
+    /** Ticked = this client asked not to receive bulk messages (greetings, offers). */
+    public bool $bulkOptOut = false;
+
     /** @var array<int> */
     public array $workTypeIds = [];
 
@@ -67,6 +70,7 @@ class Form extends Component
                 $value = $client->{$key};
                 $this->form[$key] = $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : (string) ($value ?? '');
             }
+            $this->bulkOptOut = $client->bulk_opt_out_at !== null;
             $this->workTypeIds = $client->workTypes()->pluck('lookups.id')->map(fn ($id) => (int) $id)->all();
         } else {
             $this->client = null;
@@ -151,10 +155,10 @@ class Form extends Component
 
         $client = DB::transaction(function () use ($data, $creating) {
             if ($creating) {
-                $client = Client::create($data + ['created_by' => auth()->id()]);
+                $client = Client::create($data + ['created_by' => auth()->id(), 'bulk_opt_out_at' => $this->bulkOptOut ? now() : null]);
             } else {
                 $client = $this->client;
-                $client->update($data);
+                $client->update($data + ['bulk_opt_out_at' => $this->bulkOptOut ? ($client->bulk_opt_out_at ?? now()) : null]);
             }
             $client->workTypes()->sync($this->workTypeIds);
             if ($creating && ($client->contact_name || $client->email)) {

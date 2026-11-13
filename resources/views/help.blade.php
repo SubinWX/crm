@@ -18,6 +18,8 @@
         ['posters', 'Social media posters', $can('posters.view')],
         ['profile', 'My Profile', true],
         ['office', 'Documents, policies, meeting notes', true],
+        ['search', 'Search and phone use', true],
+        ['bulk', 'Bulk messages', $can('admin')],
         ['chat', 'Chat, AI Assistant, Timeline', true],
         ['equipment', 'Equipment', true],
         ['notifications', 'Notifications and reminders', $team],
@@ -335,6 +337,28 @@
                     <li><strong>Office → Meeting Notes</strong> — notes of reviews and one-to-one meetings held with you.@if ($can('staff.manage') || $can('team.manage')) You can add a note about a person; untick “can read this note” to keep it for managers only.@endif</li>
                 </ul>
             </section>
+
+            <section id="search" class="card p-5 text-sm leading-relaxed text-stone-700">
+                <h2>Search, and using the CRM on a phone</h2>
+                <ul>
+                    <li><strong>Search</strong> — the box in the top bar finds clients, projects, tasks, invoices, leads, quotes, support tickets and people in one go. Type two or more letters, a phone number or an invoice number. Press <kbd>/</kbd> to jump to it. You only get results from the areas you can open.</li>
+                    <li><strong>On a phone</strong> — open the same address in the phone’s browser. The menu is behind the ☰ button and search behind the magnifier. The dashboard shows three shortcuts: <em>Check in / out</em>, <em>Apply for leave</em> and <em>Timesheet</em>. Wide tables scroll sideways.</li>
+                </ul>
+            </section>
+
+            @if ($can('admin'))
+                <section id="bulk" class="card p-5 text-sm leading-relaxed text-stone-700">
+                    <h2>Bulk messages</h2>
+                    <p><strong>Clients → Bulk Messages</strong> sends one email or WhatsApp message to a chosen group of clients: festival greetings, an offer, a renewal notice.</p>
+                    <ul>
+                        <li><strong>Write it once.</strong> <code>{client}</code>, <code>{contact}</code> and <code>{company}</code> are filled in for each client. The preview shows the first client’s copy.</li>
+                        <li><strong>Choose who gets it</strong> by status, industry, work type or an upcoming renewal, then untick anyone you want to leave out. Archived clients, clients with no email or mobile number, and clients who asked not to receive bulk messages are never included.</li>
+                        <li><strong>Send a test to yourself</strong> (email), then press Send. Messages go out one after another; the list shows Sent, Failed or Skipped for each client, and failed ones can be sent again.</li>
+                        <li><strong>Stopping:</strong> every bulk email has a “Stop these emails” link. You can also tick <em>Do not send bulk messages</em> on a client’s edit page. Invoice and renewal reminders are not affected.</li>
+                        <li><strong>WhatsApp through Meta</strong> only delivers messages that use a template approved in WhatsApp Manager, so you enter that template’s name. Email and WhatsApp must first be connected in <strong>Administration → Email &amp; WhatsApp</strong>.</li>
+                    </ul>
+                </section>
+            @endif
 
             <section id="chat" class="card p-5 text-sm leading-relaxed text-stone-700">
                 <h2>Chat, AI Assistant and the Timeline</h2>

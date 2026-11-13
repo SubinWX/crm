@@ -34,7 +34,7 @@
                 {{ $awayToday->map(fn ($l) => ($l->user?->name ?? 'Someone').($l->day_part !== 'full' ? ' ('.(\App\Models\LeaveRequest::SHORT_PARTS[$l->day_part] ?? '').')' : ''))->implode(', ') }}
             </div>
         @endif
-        <div class="mb-5 flex gap-6 border-b border-stone-200" role="tablist">
+        <div class="mb-5 flex gap-6 overflow-x-auto border-b border-stone-200" role="tablist">
             <button type="button" role="tab" @class(['tab', 'tab-active' => $tab === 'mine']) wire:click="$set('tab', 'mine')">My leave</button>
             <button type="button" role="tab" @class(['tab', 'tab-active' => $tab === 'review']) wire:click="$set('tab', 'review')">To approve @if ($pendingCount) <span class="ml-1 rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">{{ $pendingCount }}</span> @endif</button>
             <button type="button" role="tab" @class(['tab', 'tab-active' => $tab === 'all']) wire:click="$set('tab', 'all')">Everyone’s leave</button>

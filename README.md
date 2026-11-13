@@ -211,6 +211,8 @@ php artisan crm:send-reminders --date=2027-01-03
 | Rules & Policies | Writes them | Read | Read |
 | Meeting Notes | Writes about anyone | Reads own shared notes; writes with `team.manage` | Reads own; writes about staff |
 | Chat, AI Assistant, Timeline & Change log | Yes; sets the assistant API key and edits the timeline | Yes | Yes |
+| Bulk Messages (email / WhatsApp to selected clients) | Yes | No | No |
+| Global search | Everything | The areas they can open | Their own clients and staff |
 | Invoices, payments, expenses, GST summary | Yes | With `finance.manage` | With `finance.manage` |
 | Leads and quotes | Yes | With `sales.manage` | With `sales.manage` |
 | Careers | Yes | With `careers.manage` | With `careers.manage` |

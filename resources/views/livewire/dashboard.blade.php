@@ -9,6 +9,15 @@
         @can('posters.manage') <a href="{{ route('posters.index', ['upload' => 1]) }}" class="btn-secondary">Upload Poster</a> @endcan
     </x-page-header>
 
+    {{-- Phone: the things people do from their phone, one tap away. --}}
+    @can('workspace')
+        <div class="mb-5 grid grid-cols-3 gap-2 sm:hidden">
+            <a href="{{ route('attendance') }}" class="card flex flex-col items-center gap-1 px-2 py-3 text-center text-xs font-semibold text-stone-800"><x-icon name="check" class="size-6 text-brand-700" /> Check in / out</a>
+            <a href="{{ route('leave', ['apply' => 1]) }}" class="card flex flex-col items-center gap-1 px-2 py-3 text-center text-xs font-semibold text-stone-800"><x-icon name="calendar" class="size-6 text-brand-700" /> Apply for leave</a>
+            <a href="{{ route('timesheet') }}" class="card flex flex-col items-center gap-1 px-2 py-3 text-center text-xs font-semibold text-stone-800"><x-icon name="clock" class="size-6 text-brand-700" /> Timesheet</a>
+        </div>
+    @endcan
+
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @if ($canClients)
             <x-stat label="Clients added this month" :value="$clientsThisMonth" :hint="$activeClients.' active '.str('client')->plural($activeClients).' in total'" :href="route('clients.index')" />
@@ -20,7 +29,7 @@
         @endif
     </div>
 
-    <div class="grid gap-5 xl:grid-cols-3">
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
         @if ($canClients)
             {{-- Hosting renewals --}}
             <section class="card xl:col-span-2">
@@ -35,7 +44,7 @@
                         ['Due within 2 months', $hostingTwoMonths, 'badge-red', 'two_months'],
                     ];
                 @endphp
-                <div class="grid divide-y divide-stone-200 md:grid-cols-3 md:divide-x md:divide-y-0">
+                <div class="grid grid-cols-1 divide-y divide-stone-200 md:grid-cols-3 md:divide-x md:divide-y-0">
                     @foreach ($groups as [$label, $records, $badge, $filter])
                         <div class="min-w-0 p-4">
                             <a href="{{ route('renewals.index', ['type' => 'hosting', 'hdue' => $filter]) }}" class="mb-3 flex items-center justify-between gap-2">

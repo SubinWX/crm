@@ -152,7 +152,7 @@ class WhatsApp
     /**
      * Send one message now.
      *
-     * @param  array{kind?:string, values?:string[]}  $parameters
+     * @param  array{kind?:string, template?:string, values?:string[]}  $parameters
      * @return array{ok:bool, id:?string, error:?string}
      */
     public static function send(string $to, string $body, array $parameters = []): array
@@ -164,7 +164,8 @@ class WhatsApp
 
         try {
             if (self::provider() === 'meta') {
-                $template = filled($parameters['kind'] ?? null) ? self::get('whatsapp_template_'.$parameters['kind']) : '';
+                // A bulk message names its approved template itself; reminders use the one saved for their kind.
+                $template = (string) ($parameters['template'] ?? (filled($parameters['kind'] ?? null) ? self::get('whatsapp_template_'.$parameters['kind']) : ''));
                 $payload = ['messaging_product' => 'whatsapp', 'recipient_type' => 'individual', 'to' => $to];
                 $payload += $template !== ''
                     ? ['type' => 'template', 'template' => [

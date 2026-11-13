@@ -132,7 +132,7 @@
         </div>
     @else
         @php $t = $sheet->totals[$me->id]; $n = fn ($v) => rtrim(rtrim(number_format($v, 1), '0'), '.'); @endphp
-        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <x-stat label="Days present" :value="$n($t['present'])" :hint="'of '.$t['working'].' working days in '.$sheet->start->format('F')" />
             <x-stat label="On leave" :value="$n($t['leave'])" hint="Approved leave" />
             <x-stat label="Absent" :value="$n($t['absent'])" :tone="$t['absent'] ? 'danger' : 'default'" hint="Marked absent" />

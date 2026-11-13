@@ -17,6 +17,7 @@
             ['Clients', 'users', [
                 ['clients.index', 'All Clients', 'users', $user->can('clients.view'), ['clients.index', 'clients.show', 'clients.edit']],
                 ['clients.create', 'Add Client', 'plus', $user->can('clients.create'), 'clients.create'],
+                ['campaigns.index', 'Bulk Messages', 'bell', $user->can('admin'), 'campaigns.*'],
                 ['renewals.index', 'Hosting & Renewals', 'server', $user->can('workspace') && $user->can('clients.view'), 'renewals.*'],
             ]],
             ['Projects', 'check', [
@@ -136,7 +137,8 @@
         <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-stone-200 bg-white/90 px-4 backdrop-blur sm:px-6">
             <button type="button" class="btn-ghost lg:hidden" @click="nav = true" aria-label="Open navigation"><x-icon name="menu" class="size-5" /></button>
             <p class="truncate text-sm font-semibold text-stone-900">{{ $title ?? '' }}</p>
-            <div class="ml-auto flex items-center gap-2">
+            <div class="ml-auto flex items-center gap-1 sm:gap-2">
+                <livewire:search.box />
                 {{-- A timer left running shows here on every page, counting up, so it is never forgotten. --}}
                 @php $runningTimer = auth()->user()->can('workspace') ? \App\Models\TimeEntry::running()->with('project')->where('user_id', auth()->id())->latest('started_at')->first() : null; @endphp
                 @if ($runningTimer)
@@ -155,7 +157,7 @@
             </div>
         </header>
 
-        <main class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
+        <main class="mx-auto max-w-[1400px] px-4 pt-6 pb-24 sm:px-6 sm:pb-6">
             @if (session('status'))
                 <div class="mb-4 rounded-md border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm text-brand-800" role="status">{{ session('status') }}</div>
             @endif
