@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChatMessage;
 use App\Models\Client;
 use App\Models\ClientFile;
 use App\Models\Document;
@@ -147,6 +148,16 @@ class FileController extends Controller
     protected static function csvSafe(?string $value): ?string
     {
         return $value !== null && preg_match('/^[=+\-@\t\r]/', $value) ? "'".$value : $value;
+    }
+
+    /** A picture or file sent in the chat: the team room is open to everyone signed in, a private message to its two people. */
+    public function chatAttachment(Request $request, ChatMessage $message)
+    {
+        abort_unless($message->attachment_path && $message->canBeSeenBy($request->user()), 404);
+
+        return $message->isImage() && ! $request->boolean('download')
+            ? $this->inline($message->attachment_path, $message->attachment_mime)
+            : $this->download($message->attachment_path, $message->attachment_name ?: 'attachment');
     }
 
     /** Office → Documents: the owner, whoever added it, their managers and Super Admins; everyone for a company document. */

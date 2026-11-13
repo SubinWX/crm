@@ -97,7 +97,9 @@
 
             <a href="{{ route('chat') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('chat')]) @if (request()->routeIs('chat')) aria-current="page" @endif>
                 <x-icon name="bell" /> <span class="flex-1">Chat</span>
-                @if ($unreadChat && ! request()->routeIs('chat')) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" title="Unread messages">{{ $unreadChat }}</span> @endif
+                {{-- Kept up to date by the chat notifier while the page is open. --}}
+                <span x-data="{ n: {{ request()->routeIs('chat') ? 0 : $unreadChat }} }" x-on:chat-unread.window="n = $event.detail.count" x-show="n > 0" x-text="n" x-cloak
+                      class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" title="Unread messages"></span>
             </a>
             <a href="{{ route('assistant') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('assistant')]) @if (request()->routeIs('assistant')) aria-current="page" @endif>
                 <x-icon name="star" /> AI Assistant
@@ -175,6 +177,21 @@
         <template x-for="t in toasts" :key="t.id">
             <div class="pointer-events-auto rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-lg"
                  :class="t.type === 'error' ? 'bg-red-700' : 'bg-ink-800'" role="status" x-text="t.message"></div>
+        </template>
+    </div>
+    {{-- New chat messages: a popup in the top-right corner of whichever page is open. Click it to open the conversation. --}}
+    <livewire:chat.notifier />
+    <div x-data="{ popups: [] }" class="pointer-events-none fixed top-16 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] space-y-2" aria-live="polite"
+         @chat-popup.window="const p = { id: Date.now() + Math.random(), ...$event.detail }; popups.push(p); setTimeout(() => popups = popups.filter(x => x.id !== p.id), 8000)">
+        <template x-for="p in popups" :key="p.id">
+            <div class="card pointer-events-auto flex items-start gap-3 p-3 shadow-xl" role="status" x-transition.opacity>
+                <a :href="p.url" class="min-w-0 flex-1">
+                    <p class="text-xs font-semibold tracking-wide text-brand-700 uppercase" x-text="'New message · ' + p.room"></p>
+                    <p class="mt-0.5 truncate text-sm font-semibold text-stone-900" x-text="p.name"></p>
+                    <p class="line-clamp-2 text-sm text-stone-600" x-text="p.text"></p>
+                </a>
+                <button type="button" class="btn-ghost btn-sm" @click="popups = popups.filter(x => x.id !== p.id)" aria-label="Dismiss"><x-icon name="x" /></button>
+            </div>
         </template>
     </div>
     @livewireScripts

@@ -41,7 +41,22 @@
                         <x-avatar :src="$m->sender?->avatarUrl()" :name="$m->sender?->name ?? '?'" size="size-7" class="mt-0.5 text-[10px]" />
                         <div @class(['max-w-[75%]', 'text-right' => $mine])>
                             <p class="mb-0.5 text-[11px] text-stone-500">{{ $mine ? 'You' : ($m->sender?->name ?? 'Someone') }} · {{ $m->created_at->timezone(crm_tz())->format($m->created_at->isToday() ? 'g:i A' : 'd M, g:i A') }}</p>
-                            <p @class(['inline-block rounded-lg px-3 py-2 text-left text-sm break-words whitespace-pre-wrap', 'bg-brand-600 text-white' => $mine, 'border border-stone-200 bg-white text-stone-800' => ! $mine])>{{ $m->body }}</p>
+                            @if ($m->attachment_path)
+                                @if ($m->isImage())
+                                    <a href="{{ route('chat.attachment', $m) }}" target="_blank" rel="noopener" class="mb-1 block" title="Open the picture">
+                                        <img src="{{ route('chat.attachment', $m) }}" alt="{{ $m->attachment_name }}" loading="lazy" class="inline-block max-h-64 max-w-full rounded-lg border border-stone-200 bg-white object-contain">
+                                    </a>
+                                @else
+                                    <a href="{{ route('chat.attachment', ['message' => $m, 'download' => 1]) }}" class="mb-1 inline-flex max-w-full items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-50">
+                                        <x-icon name="document" class="size-5 text-stone-400" />
+                                        <span class="min-w-0"><span class="block truncate font-medium">{{ $m->attachment_name }}</span><span class="block text-xs text-stone-500">{{ $m->attachmentSize() }} · Download</span></span>
+                                    </a>
+                                @endif
+                                @if (filled($m->body)) <br> @endif
+                            @endif
+                            @if (filled($m->body))
+                                <p @class(['inline-block rounded-lg px-3 py-2 text-left text-sm break-words whitespace-pre-wrap', 'bg-brand-600 text-white' => $mine, 'border border-stone-200 bg-white text-stone-800' => ! $mine])>{{ $m->body }}</p>
+                            @endif
                         </div>
                     </div>
                 @empty
@@ -49,15 +64,39 @@
                 @endforelse
             </div>
 
-            <form wire:submit="send" class="flex items-end gap-2 border-t border-stone-200 p-3">
-                <div class="min-w-0 flex-1">
-                    <textarea class="input resize-none" rows="1" wire:model="body" placeholder="{{ $partner ? 'Message '.$partner->name : 'Message the team' }}" aria-label="Message"
-                              x-on:keydown.enter="if (! $event.shiftKey) { $event.preventDefault(); $wire.send() }"></textarea>
-                    @error('body') <p class="field-error">{{ $message }}</p> @enderror
+            {{-- Pictures and files can be chosen with the clip button, dropped on the box, or pasted (Ctrl/Cmd + V). --}}
+            <form wire:submit="send" class="border-t border-stone-200 p-3"
+                  x-data="{ over: false, attach(files) { if (files && files.length) { $wire.upload('file', files[0]) } } }"
+                  x-on:dragover.prevent="over = true" x-on:dragleave.prevent="over = false" x-on:drop.prevent="over = false; attach($event.dataTransfer.files)"
+                  :class="over && 'bg-brand-50'">
+                @if ($file && ! $errors->has('file'))
+                    <div class="mb-2 flex items-center gap-3 rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+                        @if (str_starts_with((string) $file->getMimeType(), 'image/'))
+                            <img src="{{ $file->temporaryUrl() }}" alt="Picture to send" class="size-12 rounded border border-stone-200 object-cover">
+                        @else
+                            <x-icon name="document" class="size-6 text-stone-400" />
+                        @endif
+                        <span class="min-w-0 flex-1 truncate text-sm text-stone-700">{{ $file->getClientOriginalName() }} <span class="text-xs text-stone-500">· ready to send</span></span>
+                        <button type="button" class="btn-ghost btn-sm" wire:click="removeFile" aria-label="Remove the attachment"><x-icon name="x" /></button>
+                    </div>
+                @endif
+                <p wire:loading wire:target="file" class="mb-2 text-xs text-stone-500">Attaching…</p>
+                @error('file') <p class="field-error mb-2">{{ $message }}</p> @enderror
+                <div class="flex items-end gap-2">
+                    <label class="btn-secondary cursor-pointer" title="Attach a picture or file">
+                        <x-icon name="photo" /> <span class="sr-only">Attach a picture or file</span>
+                        <input type="file" class="hidden" wire:model="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip">
+                    </label>
+                    <div class="min-w-0 flex-1">
+                        <textarea class="input resize-none" rows="1" wire:model="body" placeholder="{{ $partner ? 'Message '.$partner->name : 'Message the team' }}" aria-label="Message"
+                                  x-on:keydown.enter="if (! $event.shiftKey) { $event.preventDefault(); $wire.send() }"
+                                  x-on:paste="if ($event.clipboardData && $event.clipboardData.files.length) { $event.preventDefault(); attach($event.clipboardData.files) }"></textarea>
+                        @error('body') <p class="field-error">{{ $message }}</p> @enderror
+                    </div>
+                    <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="send,file">Send</button>
                 </div>
-                <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="send">Send</button>
             </form>
         </div>
     </div>
-    <p class="mt-2 text-xs text-stone-500">Enter sends, Shift + Enter starts a new line. New messages appear within a few seconds.</p>
+    <p class="mt-2 text-xs text-stone-500">Enter sends, Shift + Enter starts a new line. Attach a picture or file with the picture button, by dropping it on the box, or by pasting a copied image. Up to 10 MB.</p>
 </div>

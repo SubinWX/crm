@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * Internal chat: one team room everyone reads, and private messages between two people.
@@ -16,11 +17,16 @@ use Livewire\Component;
 #[Title('Chat')]
 class Index extends Component
 {
+    use WithFileUploads;
+
     /** '' = the team room, otherwise the id of the person the private conversation is with. */
     #[Url(as: 'with', except: '')]
     public string $with = '';
 
     public string $body = '';
+
+    /** A picture or file chosen, dropped or pasted into the message box, waiting to be sent. */
+    public $file;
 
     public function mount(): void
     {
@@ -41,6 +47,7 @@ class Index extends Component
             $this->with = '';
         }
         $this->body = '';
+        $this->reset('file');
         $this->resetValidation();
         $this->dispatch('chat-scroll');
     }
@@ -50,11 +57,27 @@ class Index extends Component
         $partner = $this->partner();
         abort_if($this->with !== '' && ! $partner, 404);
         $this->body = trim($this->body);
-        $this->validate(['body' => ['required', 'string', 'max:4000']], [], ['body' => 'message']);
+        $this->validate([
+            'body' => [$this->file ? 'nullable' : 'required', 'string', 'max:4000'],
+            'file' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
+        ], ['body.required' => 'Type a message or attach a file.', 'file.mimes' => 'Attach a picture, PDF, Word, Excel, CSV, text or ZIP file.', 'file.max' => 'The file may be up to 10 MB.'],
+            ['body' => 'message', 'file' => 'attachment']);
 
-        ChatMessage::create(['sender_id' => auth()->id(), 'recipient_id' => $partner?->id, 'body' => $this->body]);
+        ChatMessage::create([
+            'sender_id' => auth()->id(), 'recipient_id' => $partner?->id, 'body' => $this->body !== '' ? $this->body : null,
+        ] + ($this->file ? [
+            'attachment_path' => $this->file->store('chat', 'local'), 'attachment_name' => $this->file->getClientOriginalName(),
+            'attachment_mime' => $this->file->getMimeType(), 'attachment_size' => $this->file->getSize(),
+        ] : []));
         $this->body = '';
+        $this->reset('file');
         $this->dispatch('chat-scroll');
+    }
+
+    public function removeFile(): void
+    {
+        $this->reset('file');
+        $this->resetValidation('file');
     }
 
     /** Opening or refreshing a conversation marks what is in it as read. */

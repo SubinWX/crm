@@ -74,6 +74,7 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
     Route::get('/documents/{document}/download', [FileController::class, 'document'])->name('documents.download');
     Route::get('/timeline', Livewire\Office\Roadmap::class)->name('roadmap');
     Route::get('/chat', Livewire\Chat\Index::class)->name('chat');
+    Route::get('/chat/attachments/{message}', [FileController::class, 'chatAttachment'])->name('chat.attachment');
     Route::get('/assistant', Livewire\Assistant\Index::class)->name('assistant');
 
     // Email Tools: signature and template builders, open to everyone on the team.

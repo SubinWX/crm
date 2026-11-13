@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Assistant\Index as AssistantPage;
 use App\Livewire\Chat\Index as Chat;
+use App\Livewire\Chat\Notifier;
 use App\Livewire\Office\Documents;
 use App\Livewire\Office\MeetingNotes;
 use App\Livewire\Office\Policies;
@@ -171,6 +172,33 @@ class OfficeTest extends TestCase
         Livewire::actingAs($this->admin)->test(Chat::class)->assertDontSee('Lunch at one?');
         Livewire::actingAs($this->meera)->withQueryParams(['with' => (string) $this->ravi->id])->test(Chat::class)->assertSee('Lunch at one?');
         $this->assertSame(0, ChatMessage::unreadFor($this->meera->fresh()));
+
+        // Attachments: a picture or a file, with or without text. A message needs one or the other.
+        Storage::fake('local');
+        Livewire::actingAs($this->ravi)->withQueryParams(['with' => (string) $this->meera->id])->test(Chat::class)
+            ->set('file', UploadedFile::fake()->create('virus.exe', 10))->call('send')->assertHasErrors('file')
+            ->call('removeFile')->call('send')->assertHasErrors('body')
+            ->set('file', UploadedFile::fake()->image('screenshot.png', 400, 300))->assertSee('ready to send')->call('send')->assertHasNoErrors()->assertSet('file', null)->assertSee('screenshot.png');
+        Livewire::actingAs($this->ravi)->withQueryParams([])->test(Chat::class)->assertSet('with', '')->set('body', 'The price list')->set('file', UploadedFile::fake()->create('prices.pdf', 80, 'application/pdf'))->call('send')->assertHasNoErrors()
+            ->assertSee('prices.pdf')->assertSee('The price list');
+        [$picture, $pdf] = [ChatMessage::where('attachment_name', 'screenshot.png')->firstOrFail(), ChatMessage::where('attachment_name', 'prices.pdf')->firstOrFail()];
+        $this->assertSame([null, true, 'Sent a picture', false, 'The price list'], [$picture->body, $picture->isImage(), $picture->preview(), $pdf->isImage(), $pdf->preview()]);
+        Storage::disk('local')->assertExists($picture->attachment_path);
+        // A private attachment opens for its two people only; a team-room one for everyone.
+        $this->actingAs($this->meera)->get('/chat/attachments/'.$picture->id)->assertOk()->assertHeader('Content-Type', 'image/png');
+        $this->actingAs($this->admin)->get('/chat/attachments/'.$picture->id)->assertNotFound();
+        $this->actingAs($this->admin)->get('/chat/attachments/'.$pdf->id)->assertOk()->assertDownload('prices.pdf');
+
+        // The popup: a new message raises one on other pages, with a link to the conversation; none on the Chat page or for your own message.
+        $notifier = Livewire::actingAs($this->admin)->test(Notifier::class);
+        $notifier->call('check')->assertNotDispatched('chat-popup');
+        ChatMessage::create(['sender_id' => $this->ravi->id, 'recipient_id' => $this->admin->id, 'body' => 'Are you free?']);
+        ChatMessage::create(['sender_id' => $this->admin->id, 'recipient_id' => null, 'body' => 'My own message']);
+        ChatMessage::create(['sender_id' => $this->ravi->id, 'recipient_id' => $this->hr->id, 'body' => 'Not for the admin']);
+        $notifier->call('check')->assertDispatched('chat-popup', name: 'Ravi Staff', room: 'Private message', text: 'Are you free?', url: route('chat', ['with' => $this->ravi->id]))
+            ->assertDispatched('chat-unread')->call('check')->assertNotDispatched('chat-popup', text: 'Not for the admin');
+        ChatMessage::create(['sender_id' => $this->ravi->id, 'recipient_id' => $this->admin->id, 'body' => 'Second']);
+        Livewire::actingAs($this->admin)->test(Notifier::class)->set('onChat', true)->call('check')->assertNotDispatched('chat-popup')->assertDispatched('chat-unread', count: 0);
 
         // Nobody messages themselves or a deactivated account: it falls back to the team room.
         $this->meera->update(['is_active' => false]);
