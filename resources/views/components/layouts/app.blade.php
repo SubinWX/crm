@@ -26,6 +26,9 @@
             ['Office', 'desktop', [
                 ['posters.index', 'Social Media Posters', 'photo', $user->can('posters.view'), 'posters.*'],
                 ['equipment.index', $user->isSuperAdmin() ? 'Equipment' : 'My Equipment', 'desktop', true, 'equipment.*'],
+                ['documents', 'Documents', 'document', true, 'documents'],
+                ['policies', 'Rules & Policies', 'book', true, 'policies'],
+                ['meeting-notes', 'Meeting Notes', 'document', true, 'meeting-notes'],
             ]],
             ['Team', 'clock', [
                 ['profile', 'My Profile', 'users', true, 'profile'],
@@ -72,6 +75,7 @@
         ];
         $newApplications = $user->can('careers.manage') ? \App\Models\JobApplication::where('status', 'new')->count() : 0;
         $pendingLeave = $user->can('team.manage') ? \App\Models\LeaveRequest::where('status', 'pending')->count() : 0;
+        $unreadChat = \App\Models\ChatMessage::unreadFor($user);
         $openTickets = $user->can('support.manage') ? \App\Models\SupportTicket::where('status', 'open')->count() : 0;
     @endphp
 
@@ -89,6 +93,14 @@
             </a>
             <a href="{{ route('calendar') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('calendar')]) @if (request()->routeIs('calendar')) aria-current="page" @endif>
                 <x-icon name="calendar" /> Calendar
+            </a>
+
+            <a href="{{ route('chat') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('chat')]) @if (request()->routeIs('chat')) aria-current="page" @endif>
+                <x-icon name="bell" /> <span class="flex-1">Chat</span>
+                @if ($unreadChat && ! request()->routeIs('chat')) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" title="Unread messages">{{ $unreadChat }}</span> @endif
+            </a>
+            <a href="{{ route('assistant') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('assistant')]) @if (request()->routeIs('assistant')) aria-current="page" @endif>
+                <x-icon name="star" /> AI Assistant
             </a>
 
             @foreach ($nav as [$group, $groupIcon, $items])
@@ -123,6 +135,7 @@
             @endforeach
         </nav>
         <div class="shrink-0 border-t border-white/10 p-3">
+            <a href="{{ route('roadmap') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('roadmap')])><x-icon name="clock" /> Timeline &amp; Change log</a>
             <a href="{{ route('help') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('help')])><x-icon name="book" /> Help &amp; Tutorial</a>
         </div>
     </aside>

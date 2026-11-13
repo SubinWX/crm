@@ -17,6 +17,8 @@
         ['support', 'Support portal and tickets', $can('support.manage') || $can('portal-users.manage')],
         ['posters', 'Social media posters', $can('posters.view')],
         ['profile', 'My Profile', true],
+        ['office', 'Documents, policies, meeting notes', true],
+        ['chat', 'Chat, AI Assistant, Timeline', true],
         ['equipment', 'Equipment', true],
         ['notifications', 'Notifications and reminders', $team],
         ['careers', 'Careers and job applications', $can('careers.manage')],
@@ -319,16 +321,28 @@
 
             <section id="profile" class="card p-5 text-sm leading-relaxed text-stone-700">
                 <h2>My Profile</h2>
-                <p><strong>Team → My Profile</strong> (also in the menu under your name, top right) is your own page. On the left are your picture and the leave you have left this year. It has four tabs:</p>
-                <ul>
-                    <li><strong>Details</strong> — your phone numbers, personal email, date of birth, address, blood group and an emergency contact. Press <em>Edit</em> to fill them in.</li>
-                    <li><strong>Rules &amp; Policies</strong> — the company’s rules, the same for everyone.@if ($can('admin')) As a Super Admin you add, edit and delete them here.@endif</li>
-                    <li><strong>Meeting Notes</strong> — notes of reviews and one-to-one meetings held with you, written by a manager.</li>
-                    <li><strong>Allocated Devices</strong> — the laptops, phones and other items issued to you.</li>
-                </ul>
+                <p><strong>Team → My Profile</strong> (also in the menu under your name, top right) is your own page. On the left are your picture and the leave you have left this year. <strong>Details</strong> holds your phone numbers, personal email, date of birth, address, blood group and an emergency contact; press <em>Edit</em> to fill them in. <strong>Allocated Devices</strong> lists the items issued to you.</p>
                 @if ($can('staff.manage') || $can('team.manage'))
-                    <p><strong>Someone else’s profile:</strong> press <em>Profile</em> next to a person in <strong>Administration → Staff</strong>, or their name in <strong>Leave → Balances</strong>. There you can correct their details, set their joining date and add meeting notes. Untick “can read this note” to keep a note for managers only.</p>
+                    <p><strong>Someone else’s profile:</strong> press <em>Profile</em> next to a person in <strong>Administration → Staff</strong>, or their name in <strong>Leave → Balances</strong>. There you can correct their details and set their joining date.</p>
                 @endif
+            </section>
+
+            <section id="office" class="card p-5 text-sm leading-relaxed text-stone-700">
+                <h2>Documents, Rules &amp; Policies, Meeting Notes</h2>
+                <ul>
+                    <li><strong>Office → Documents</strong> — upload your own papers (ID proof, certificates, letters). Only you, your managers and Super Admins can open them. Filter by category or date, search, and click a column heading to sort.@if ($can('admin')) As a Super Admin you can tick <em>Company document</em> so that everyone can open a file, and you can upload a document for another person with <em>Belongs to</em>.@endif</li>
+                    <li><strong>Office → Rules &amp; Policies</strong> — the company’s rules, the same for everyone.@if ($can('admin')) As a Super Admin you add, edit and delete them there.@endif</li>
+                    <li><strong>Office → Meeting Notes</strong> — notes of reviews and one-to-one meetings held with you.@if ($can('staff.manage') || $can('team.manage')) You can add a note about a person; untick “can read this note” to keep it for managers only.@endif</li>
+                </ul>
+            </section>
+
+            <section id="chat" class="card p-5 text-sm leading-relaxed text-stone-700">
+                <h2>Chat, AI Assistant and the Timeline</h2>
+                <ul>
+                    <li><strong>Chat</strong> — the <em>Team room</em> is seen by everyone; pick a person for a private conversation. A red number in the menu shows unread messages.</li>
+                    <li><strong>AI Assistant</strong> — drafts emails and proposals, summarises or rewords text you paste in, and answers everyday questions. It cannot see the CRM’s records, and your conversation is visible only to you. What you type is sent to Anthropic, so do not paste passwords.@if ($can('admin')) It is off until you save an Anthropic API key with the <em>Setup</em> button on that page; Anthropic bills that account for usage.@endif</li>
+                    <li><strong>Timeline &amp; Change log</strong> (bottom of the menu) — what has been added to the CRM, what is in progress and what is planned.@if ($can('admin')) As a Super Admin you add items and move them from Planned to In progress to Done.@endif</li>
+                </ul>
             </section>
 
             <section id="equipment" class="card p-5 text-sm leading-relaxed text-stone-700">

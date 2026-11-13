@@ -25,7 +25,7 @@
     ];
 @endphp
 <div>
-    <x-page-header :title="$own ? 'My Profile' : $person->name" :subtitle="$own ? 'Your details, the company rules, your meeting notes and the devices issued to you.' : 'Profile of '.$person->name.' · '.$person->role_label">
+    <x-page-header :title="$own ? 'My Profile' : $person->name" :subtitle="$own ? 'Your details, your leave and the devices issued to you.' : 'Profile of '.$person->name.' · '.$person->role_label">
         @unless ($own)
             @if ($person->role === 'staff' && auth()->user()->can('staff.manage')) <a href="{{ route('staff.index') }}" class="btn-secondary">Back to Staff</a>
             @elseif ($person->role !== 'staff' && auth()->user()->can('admin')) <a href="{{ route('users.index', ['role' => $person->role]) }}" class="btn-secondary">Back to Admins</a>
@@ -63,6 +63,7 @@
                 <div class="mt-4 flex justify-center gap-4 border-t border-stone-200 pt-3 text-sm">
                     <a href="{{ route('calendar') }}" class="font-medium text-brand-700 hover:underline">Leave calendar</a>
                     <a href="{{ route('timesheet') }}" class="font-medium text-brand-700 hover:underline">Timesheet</a>
+                    <a href="{{ route('documents') }}" class="font-medium text-brand-700 hover:underline">Documents</a>
                 </div>
             @endif
         </div>
@@ -95,60 +96,6 @@
                         </div>
                     @endforeach
                     <p class="text-xs text-stone-500">The name, work email and role are changed by a Super Admin in Administration.@unless ($canSetJoining) The joining date is set by a manager.@endunless</p>
-                </div>
-            @endif
-
-            @if ($tab === 'policies')
-                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <p class="text-sm text-stone-600">The company’s rules and policies. They are the same for everyone.</p>
-                    @if ($canPolicies) <button type="button" class="btn-primary" wire:click="editPolicy"><x-icon name="plus" /> Add policy</button> @endif
-                </div>
-                <div class="space-y-3">
-                    @forelse ($policies as $policy)
-                        <div class="card" wire:key="policy-{{ $policy->id }}" x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }">
-                            <div class="flex items-center gap-3 px-4 py-3 sm:px-5">
-                                <button type="button" class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left" @click="open = !open" :aria-expanded="open">
-                                    <x-icon name="chevron" class="size-4 text-stone-400 transition-transform" ::class="open && 'rotate-180'" />
-                                    <span class="truncate text-sm font-semibold text-stone-900">{{ $policy->title }}</span>
-                                </button>
-                                <span class="hidden text-xs text-stone-500 sm:inline">Updated {{ fmt_date($policy->updated_at) }}</span>
-                                @if ($canPolicies)
-                                    <button type="button" class="btn-ghost btn-sm" wire:click="editPolicy({{ $policy->id }})">Edit</button>
-                                    <button type="button" class="btn-ghost btn-sm text-red-700" wire:click="deletePolicy({{ $policy->id }})" wire:confirm="Delete the policy “{{ $policy->title }}”? This cannot be undone.">Delete</button>
-                                @endif
-                            </div>
-                            <div x-show="open" x-collapse @unless ($loop->first) x-cloak @endunless>
-                                <div class="rich border-t border-stone-100 px-4 py-4 text-sm text-stone-700 sm:px-5">{!! \App\Support\RichText::render($policy->body, autolink: true) !!}</div>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="card p-8 text-center text-sm text-stone-500">No rules or policies have been added yet.@if ($canPolicies) Press <strong>Add policy</strong> to write the first one.@endif</div>
-                    @endforelse
-                </div>
-            @endif
-
-            @if ($tab === 'notes')
-                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <p class="text-sm text-stone-600">{{ $own ? 'Notes of meetings held with you, such as reviews and one-to-ones.' : 'Notes of meetings held with '.$person->name.'.' }}</p>
-                    @if ($manages) <button type="button" class="btn-primary" wire:click="editNote"><x-icon name="plus" /> Add meeting note</button> @endif
-                </div>
-                <div class="space-y-3">
-                    @forelse ($notes as $note)
-                        <div class="card" wire:key="note-{{ $note->id }}">
-                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-stone-100 px-4 py-3 sm:px-5">
-                                <p class="min-w-0 flex-1 text-sm font-semibold text-stone-900">{{ $note->title }}</p>
-                                @unless ($note->shared) <span class="badge-amber" title="{{ $person->name }} does not see this note">Managers only</span> @endunless
-                                <span class="text-xs text-stone-500">{{ fmt_date($note->held_on) }}@if ($note->author) · {{ $note->author->name }}@endif</span>
-                                @if ($manages)
-                                    <button type="button" class="btn-ghost btn-sm" wire:click="editNote({{ $note->id }})">Edit</button>
-                                    <button type="button" class="btn-ghost btn-sm text-red-700" wire:click="deleteNote({{ $note->id }})" wire:confirm="Delete this meeting note? This cannot be undone.">Delete</button>
-                                @endif
-                            </div>
-                            <div class="rich px-4 py-4 text-sm text-stone-700 sm:px-5">{!! \App\Support\RichText::render($note->notes, autolink: true) !!}</div>
-                        </div>
-                    @empty
-                        <div class="card p-8 text-center text-sm text-stone-500">No meeting notes yet.@if ($own) They appear here when a manager adds one.@endif</div>
-                    @endforelse
                 </div>
             @endif
 
@@ -233,43 +180,4 @@
         </x-modal>
     @endif
 
-    @if ($modal === 'policy')
-        <x-modal :title="$editingId ? 'Edit policy' : 'Add policy'" size="max-w-3xl">
-            <form wire:submit="savePolicy" class="space-y-4">
-                <div class="grid gap-4 sm:grid-cols-[1fr_8rem]">
-                    <x-field label="Title" name="form.title" required><input class="input" type="text" wire:model="form.title" placeholder="e.g. Working hours, Leave policy"></x-field>
-                    <x-field label="Position" name="form.sort_order" hint="1 shows first."><input class="input" type="number" min="0" wire:model="form.sort_order"></x-field>
-                </div>
-                <x-field label="Text" name="form.body" required>
-                    <x-editor model="form.body" :value="$form['body'] ?? ''" min-height="14rem" label="Policy text" />
-                </x-field>
-                <div class="flex justify-end gap-2">
-                    <button type="button" class="btn-secondary" wire:click="closeModal">Cancel</button>
-                    <button type="submit" class="btn-primary" wire:loading.attr="disabled">Save policy</button>
-                </div>
-            </form>
-        </x-modal>
-    @endif
-
-    @if ($modal === 'note')
-        <x-modal :title="($editingId ? 'Edit meeting note' : 'Add meeting note').' · '.$person->name" size="max-w-3xl">
-            <form wire:submit="saveNote" class="space-y-4">
-                <div class="grid gap-4 sm:grid-cols-[1fr_11rem]">
-                    <x-field label="Title" name="form.title" required><input class="input" type="text" wire:model="form.title" placeholder="e.g. Quarterly review"></x-field>
-                    <x-field label="Meeting date" name="form.held_on" required><input class="input" type="date" wire:model="form.held_on"></x-field>
-                </div>
-                <x-field label="Notes" name="form.notes" required>
-                    <x-editor model="form.notes" :value="$form['notes'] ?? ''" min-height="12rem" label="Meeting notes" />
-                </x-field>
-                <label class="flex items-start gap-2 text-sm text-stone-700">
-                    <input type="checkbox" class="mt-0.5" wire:model="form.shared">
-                    <span>{{ $person->name }} can read this note on their profile. <span class="text-stone-500">Untick to keep it for managers only.</span></span>
-                </label>
-                <div class="flex justify-end gap-2">
-                    <button type="button" class="btn-secondary" wire:click="closeModal">Cancel</button>
-                    <button type="submit" class="btn-primary" wire:loading.attr="disabled">Save note</button>
-                </div>
-            </form>
-        </x-modal>
-    @endif
 </div>

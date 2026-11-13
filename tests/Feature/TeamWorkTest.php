@@ -15,8 +15,6 @@ use App\Models\Equipment;
 use App\Models\Holiday;
 use App\Models\LeaveRequest;
 use App\Models\Lookup;
-use App\Models\MeetingNote;
-use App\Models\Policy;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Task;
@@ -532,14 +530,14 @@ class TeamWorkTest extends TestCase
         Livewire::actingAs($this->ravi)->withQueryParams(['apply' => 1, 'date' => '2026-11-27'])->test(Leave::class)->assertSet('showForm', true)->assertSet('form.from_date', '2026-11-27');
     }
 
-    public function test_profile_has_details_policies_meeting_notes_and_devices(): void
+    public function test_profile_has_details_and_devices(): void
     {
         $subAdmin = User::factory()->create(['name' => 'Sam Admin', 'role' => User::ROLE_SUB_ADMIN]);
         Equipment::create(['name' => 'MacBook Air', 'serial_number' => 'SN-RAVI-1', 'user_id' => $this->ravi->id, 'assigned_on' => '2026-01-05']);
         Equipment::create(['name' => 'Dell Monitor', 'user_id' => $this->meera->id]);
 
         // Everyone has their own profile, with their leave boxes; other people's are refused.
-        $this->actingAs($this->ravi)->get('/profile')->assertOk()->assertSee('My Profile')->assertSee('Personal details')->assertSee('Apply for leave')->assertSee('Rules &amp; Policies', false);
+        $this->actingAs($this->ravi)->get('/profile')->assertOk()->assertSee('My Profile')->assertSee('Personal details')->assertSee('Apply for leave')->assertSee('Allocated Devices');
         $this->actingAs($this->ravi)->get('/profile/'.$this->meera->id)->assertForbidden();
         $this->actingAs($subAdmin)->get('/profile')->assertOk()->assertDontSee('Apply for leave');
         $this->actingAs($subAdmin)->get('/profile/'.$this->admin->id)->assertForbidden();
@@ -560,30 +558,6 @@ class TeamWorkTest extends TestCase
         // A manager sets the joining date on someone's profile.
         Livewire::actingAs($this->hr)->test(Profile::class, ['user' => $this->ravi])->call('editDetails', 'personal')->set('form.joined_on', '2024-03-01')->call('saveDetails')->assertHasNoErrors();
         $this->assertSame('2024-03-01', $this->ravi->fresh()->joined_on->toDateString());
-
-        // Rules & Policies: written by Super Admins, read by everyone.
-        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'policies'])->test(Profile::class)->assertSee('No rules or policies have been added yet')->assertDontSee('Add policy')
-            ->call('editPolicy')->assertForbidden();
-        Livewire::actingAs($this->admin)->withQueryParams(['tab' => 'policies'])->test(Profile::class)->call('editPolicy')->call('savePolicy')->assertHasErrors(['form.title', 'form.body'])
-            ->set('form.title', 'Working hours')->set('form.body', '<div>Office time is <strong>9:30 to 6</strong>.</div><script>alert(1)</script>')->call('savePolicy')->assertHasNoErrors()->assertSee('Working hours');
-        $policy = Policy::firstOrFail();
-        $this->assertSame('<div>Office time is <strong>9:30 to 6</strong>.</div>', $policy->body);
-        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'policies'])->test(Profile::class)->assertSee('Working hours')->assertSee('9:30 to 6')
-            ->call('deletePolicy', $policy->id)->assertForbidden();
-
-        // Meeting notes: a manager writes them on a person's profile; the person reads the shared ones only.
-        $notes = Livewire::actingAs($this->admin)->withQueryParams(['tab' => 'notes'])->test(Profile::class, ['user' => $this->ravi]);
-        $notes->call('editNote')->set('form.title', 'Quarterly review')->set('form.held_on', '2026-11-10')->set('form.notes', '<div>Doing well.</div>')->call('saveNote')->assertHasNoErrors();
-        $notes->call('editNote')->set('form.title', 'Salary discussion')->set('form.notes', '<div>Private.</div>')->set('form.shared', false)->call('saveNote')->assertHasNoErrors()
-            ->assertSee('Salary discussion')->assertSee('Managers only');
-        $this->assertSame([$this->ravi->id, $this->admin->id], [MeetingNote::first()->user_id, MeetingNote::first()->created_by]);
-        $private = MeetingNote::where('shared', false)->firstOrFail();
-        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'notes'])->test(Profile::class)->assertSee('Quarterly review')->assertSee('Asha Admin')->assertDontSee('Salary discussion')
-            ->assertDontSee('Add meeting note')->call('editNote')->assertForbidden();
-        Livewire::actingAs($this->ravi)->test(Profile::class)->call('deleteNote', $private->id)->assertForbidden();
-        // Nobody writes notes on their own profile, and a note of one person cannot be reached from another profile.
-        Livewire::actingAs($this->admin)->test(Profile::class)->call('editNote')->assertForbidden();
-        Livewire::actingAs($this->admin)->test(Profile::class, ['user' => $this->meera])->call('deleteNote', $private->id)->assertNotFound();
 
         // Allocated devices: only that person's items.
         Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'devices'])->test(Profile::class)->assertSee('MacBook Air')->assertSee('SN-RAVI-1')->assertDontSee('Dell Monitor')->assertDontSee('Manage in Equipment');

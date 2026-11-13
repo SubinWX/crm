@@ -206,7 +206,11 @@ php artisan crm:send-reminders --date=2027-01-03
 | Clients, hosting, client files | Yes | With `clients.view` / `clients.manage` | Add clients; view and edit only the clients they added (no archiving) |
 | Tasks, posters, Paid Server Clients | Yes | Yes (`tasks.manage` / `posters.manage` to change) | No |
 | Equipment | Manage everyone's | Own items, read-only | Own items, read-only |
-| Profile (details, rules & policies, meeting notes, devices) | Own and everyone's; writes the policies | Own; staff with `team.manage` also open other staff | Own and staff members' |
+| Profile (details, devices) | Own and everyone's | Own; staff with `team.manage` also open other staff | Own and staff members' |
+| Documents | All | Own, shared, and (with `team.manage`) other staff's | Own, shared and staff members' |
+| Rules & Policies | Writes them | Read | Read |
+| Meeting Notes | Writes about anyone | Reads own shared notes; writes with `team.manage` | Reads own; writes about staff |
+| Chat, AI Assistant, Timeline & Change log | Yes; sets the assistant API key and edits the timeline | Yes | Yes |
 | Invoices, payments, expenses, GST summary | Yes | With `finance.manage` | With `finance.manage` |
 | Leads and quotes | Yes | With `sales.manage` | With `sales.manage` |
 | Careers | Yes | With `careers.manage` | With `careers.manage` |

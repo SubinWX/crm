@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\ClientFile;
+use App\Models\Document;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\JobApplication;
@@ -146,6 +147,14 @@ class FileController extends Controller
     protected static function csvSafe(?string $value): ?string
     {
         return $value !== null && preg_match('/^[=+\-@\t\r]/', $value) ? "'".$value : $value;
+    }
+
+    /** Office → Documents: the owner, whoever added it, their managers and Super Admins; everyone for a company document. */
+    public function document(Request $request, Document $document)
+    {
+        abort_unless($document->canBeOpenedBy($request->user()), 403);
+
+        return $this->download($document->path, $document->original_name);
     }
 
     protected function download(string $path, string $name)

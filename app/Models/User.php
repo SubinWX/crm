@@ -114,6 +114,7 @@ class User extends Authenticatable
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
             'two_factor_confirmed_at' => 'datetime',
+            'team_chat_read_at' => 'datetime',
         ];
     }
 
@@ -214,6 +215,17 @@ class User extends Authenticatable
     public function meetingNotes(): HasMany
     {
         return $this->hasMany(MeetingNote::class);
+    }
+
+    /** The other people whose profile, meeting notes and documents $this person looks after. See managesProfileOf(). */
+    public function managedPeople(): Builder
+    {
+        $query = static::query()->where('id', '!=', $this->id);
+        if ($this->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $this->is_active && ($this->isSubAdmin() || $this->hasPermission('team.manage')) ? $query->where('role', self::ROLE_STAFF) : $query->whereRaw('1 = 0');
     }
 
     public const GENDERS = ['male' => 'Male', 'female' => 'Female', 'other' => 'Other'];

@@ -67,6 +67,15 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
     Route::get('/profile', Livewire\Account\Profile::class)->name('profile');
     Route::get('/profile/{user}', Livewire\Account\Profile::class)->name('profile.show');
 
+    // Office: the company rules, meeting notes and documents; the timeline; the chat and the AI assistant. Open to everyone signed in.
+    Route::get('/policies', Livewire\Office\Policies::class)->name('policies');
+    Route::get('/meeting-notes', Livewire\Office\MeetingNotes::class)->name('meeting-notes');
+    Route::get('/documents', Livewire\Office\Documents::class)->name('documents');
+    Route::get('/documents/{document}/download', [FileController::class, 'document'])->name('documents.download');
+    Route::get('/timeline', Livewire\Office\Roadmap::class)->name('roadmap');
+    Route::get('/chat', Livewire\Chat\Index::class)->name('chat');
+    Route::get('/assistant', Livewire\Assistant\Index::class)->name('assistant');
+
     // Email Tools: signature and template builders, open to everyone on the team.
     Route::get('/email-tools/signature', Livewire\EmailTools\Signature::class)->name('email-tools.signature');
     Route::get('/email-tools/templates', Livewire\EmailTools\Template::class)->name('email-tools.templates');
