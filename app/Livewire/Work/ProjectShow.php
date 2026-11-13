@@ -7,7 +7,7 @@ use App\Models\TimeEntry;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 
-/** One project: description, team, deadline, and the hours logged against the estimate. */
+/** One project: description, owner and team, its tasks, deadline, and the hours logged against the estimate. */
 class ProjectShow extends Component
 {
     public Project $project;
@@ -34,6 +34,9 @@ class ProjectShow extends Component
             'byPerson' => (clone $entries)->toBase()->join('users', 'users.id', '=', 'time_entries.user_id')
                 ->selectRaw('users.name as name, sum(time_entries.minutes) as minutes, max(time_entries.work_date) as last_date')->groupBy('users.id', 'users.name')->orderByDesc('minutes')->get(),
             'recent' => (clone $entries)->with('user')->when(! $manager, fn ($q) => $q->where('user_id', auth()->id()))->latest('work_date')->latest('id')->limit(30)->get(),
+            'tasksOpen' => $project->tasks()->open()->count(),
+            'tasksDone' => $project->tasks()->where('status', 'done')->count(),
+            'canTasks' => Gate::allows('tasks.view'),
             'manager' => $manager,
             'canManage' => Gate::allows('clients.manage'),
             'canLog' => Project::loggableBy(auth()->user())->whereKey($project->id)->exists(),

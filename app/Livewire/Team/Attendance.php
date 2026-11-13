@@ -38,7 +38,7 @@ class Attendance extends Component
 
     public array $holiday = ['date' => '', 'name' => ''];
 
-    public array $setup = ['weekly_off' => [], 'leave_days_per_year' => '12'];
+    public array $setup = ['weekly_off' => []];
 
     public function boot(): void
     {
@@ -53,7 +53,7 @@ class Attendance extends Component
         if (! $this->manager() || ! in_array($this->tab, ['mine', 'sheet', 'setup'], true)) {
             $this->tab = 'mine';
         }
-        $this->setup = ['weekly_off' => array_map('strval', WorkCalendar::weeklyOff()), 'leave_days_per_year' => (string) setting('leave_days_per_year', 12)];
+        $this->setup = ['weekly_off' => array_map('strval', WorkCalendar::weeklyOff())];
     }
 
     protected function manager(): bool
@@ -172,11 +172,9 @@ class Attendance extends Component
         $this->validate([
             'setup.weekly_off' => ['array', 'max:6'],
             'setup.weekly_off.*' => [Rule::in(['0', '1', '2', '3', '4', '5', '6'])],
-            'setup.leave_days_per_year' => ['required', 'numeric', 'min:0', 'max:366'],
-        ], ['setup.weekly_off.max' => 'At least one day of the week has to be a working day.'], ['setup.leave_days_per_year' => 'leave days per year']);
+        ], ['setup.weekly_off.max' => 'At least one day of the week has to be a working day.']);
 
         Setting::put('weekly_off_days', collect($this->setup['weekly_off'])->map(fn ($d) => (int) $d)->sort()->implode(','));
-        Setting::put('leave_days_per_year', (string) (float) $this->setup['leave_days_per_year']);
         activity('updated', 'Attendance and leave settings updated');
         $this->dispatch('toast', message: 'Saved.');
     }

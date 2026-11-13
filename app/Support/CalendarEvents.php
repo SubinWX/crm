@@ -121,8 +121,8 @@ class CalendarEvents
         }
 
         if ($has('task')) {
-            Task::query()->with(['client', 'lead', 'assignee'])->open()->whereBetween('due_date', [$start, $end])->get()
-                ->each(fn (Task $t) => $add('task', $t->due_date, $t->title, $t->subjectName().' · '.($t->assignee?->name ?? 'Unassigned'), $clientUrl($t->client_id, 'tasks') ?? route('tasks.index'), $t->isOverdue()));
+            Task::query()->with(['client', 'lead', 'assignees'])->open()->whereBetween('due_date', [$start, $end])->get()
+                ->each(fn (Task $t) => $add('task', $t->due_date, $t->title, $t->subjectName().' · '.$t->assigneeNames(), $clientUrl($t->client_id, 'tasks') ?? route('tasks.index'), $t->isOverdue()));
         }
 
         if ($has('project')) {
@@ -142,11 +142,19 @@ class CalendarEvents
             foreach (WorkCalendar::holidays($start, $end) as $date => $name) {
                 $add('team', $date, $name, 'Company holiday', route('attendance'));
             }
-            LeaveRequest::query()->with(['user', 'type'])->where('status', 'approved')->overlapping($start, $end)->get()
-                ->each(function (LeaveRequest $l) use ($add, $start, $end) {
+            // Leave, one entry on each working day of it. Managers see everyone's, approved or still waiting;
+            // everyone else sees their own.
+            $everyone = Gate::forUser($user)->allows('team.manage');
+            LeaveRequest::query()->with(['user', 'type'])->whereIn('status', ['approved', 'pending'])->overlapping($start, $end)
+                ->when(! $everyone, fn ($q) => $q->where('user_id', $user->id))->get()
+                ->each(function (LeaveRequest $l) use ($add, $start, $end, $user, $everyone) {
+                    $who = $l->user_id === $user->id ? 'My leave' : ($l->user?->name ?? 'Someone').' on leave';
+                    $title = $who.' · '.($l->type?->code ?: ($l->type?->name ?? 'Leave')).($l->status === 'pending' ? ' (waiting)' : '');
+                    $detail = ($l->type?->name ?? 'Leave').' · '.($l->day_part === 'full' ? 'Full day' : LeaveRequest::DAY_PARTS[$l->day_part]).($l->status === 'pending' ? ' · waiting for approval' : '');
+                    $url = route('leave', $l->status === 'pending' && $everyone && $l->user_id !== $user->id ? ['tab' => 'review'] : []);
                     for ($day = $l->from_date->copy(); $day->lte($l->to_date); $day->addDay()) {
                         if ($day->toDateString() >= $start && $day->toDateString() <= $end && WorkCalendar::workingDays($day->toDateString(), $day->toDateString()) > 0) {
-                            $add('team', $day->toDateString(), ($l->user?->name ?? 'Someone').' on leave', $l->day_part === 'full' ? 'Full day' : LeaveRequest::DAY_PARTS[$l->day_part], route('leave'));
+                            $add('team', $day->toDateString(), $title, $detail, $url);
                         }
                     }
                 });

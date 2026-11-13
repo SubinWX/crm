@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Account\Profile;
+use App\Livewire\Tasks\Index;
 use App\Livewire\Team\Attendance;
 use App\Livewire\Team\Leave;
 use App\Livewire\Team\Timesheet;
@@ -9,19 +11,25 @@ use App\Livewire\Work\Projects;
 use App\Livewire\Work\ProjectShow;
 use App\Models\AttendanceRecord;
 use App\Models\Client;
+use App\Models\Equipment;
 use App\Models\Holiday;
 use App\Models\LeaveRequest;
 use App\Models\Lookup;
+use App\Models\MeetingNote;
+use App\Models\Policy;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Notifications\LeaveDecided;
 use App\Notifications\LeaveRequested;
 use App\Support\AttendanceSheet;
 use App\Support\CalendarEvents;
+use App\Support\LeaveBalance;
 use App\Support\WorkCalendar;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -161,7 +169,7 @@ class TeamWorkTest extends TestCase
         Notification::fake();
         Holiday::create(['date' => '2026-11-18', 'name' => 'Local festival']);
         $casual = Lookup::where('type', 'leave_type')->where('name', 'Casual Leave')->value('id');
-        $unpaid = Lookup::where('type', 'leave_type')->where('name', 'Unpaid Leave')->value('id');
+        $unpaid = Lookup::where('type', 'leave_type')->where('name', 'Loss of Pay')->value('id');
 
         // Working days skip Sundays (the default weekly off) and holidays; a half day counts as 0.5.
         $this->assertSame([5.0, 0.5, 0.0, 0.0], [
@@ -169,7 +177,7 @@ class TeamWorkTest extends TestCase
             WorkCalendar::workingDays('2026-11-15', '2026-11-15'), WorkCalendar::workingDays('2026-11-18', '2026-11-18'),
         ]);
 
-        $page = Livewire::actingAs($this->ravi)->test(Leave::class)->assertSee('Paid leave left')->assertSee('12')->assertDontSee('To approve')->call('apply');
+        $page = Livewire::actingAs($this->ravi)->test(Leave::class)->assertSee('Casual Leave')->assertSee('left of 12')->assertDontSee('To approve')->call('apply');
         $page->call('submit')->assertHasErrors(['form.leave_type_id', 'form.reason']);
         $page->set('form.leave_type_id', (string) $casual)->set('form.reason', 'Family function')->set('form.from_date', '2026-11-20')->set('form.to_date', '2026-11-16')->call('submit')->assertHasErrors('form.to_date');
         $page->set('form.from_date', '2026-09-01')->set('form.to_date', '2026-09-02')->call('submit')->assertHasErrors('form.from_date');   // too far back
@@ -177,7 +185,7 @@ class TeamWorkTest extends TestCase
         $page->set('form.from_date', '2026-11-16')->set('form.to_date', '2026-11-22')->assertSee('5 working days')->call('submit')->assertHasNoErrors();
 
         $leave = LeaveRequest::firstOrFail();
-        $this->assertSame([$this->ravi->id, 'pending', '5.0', 'full'], [$leave->user_id, $leave->status, $leave->days, $leave->day_part]);
+        $this->assertSame([$this->ravi->id, 'pending', '5.00', 'full'], [$leave->user_id, $leave->status, $leave->days, $leave->day_part]);
         Notification::assertSentTo([$this->admin, $this->hr], LeaveRequested::class);
         Notification::assertNotSentTo([$this->ravi, $this->meera], LeaveRequested::class);
         $this->assertStringContainsString('Ravi Staff asked for 5 days of casual leave: 16 Nov 2026 to 22 Nov 2026.', (new LeaveRequested($leave))->message());
@@ -186,7 +194,7 @@ class TeamWorkTest extends TestCase
         $page->call('apply')->set('form.leave_type_id', (string) $casual)->set('form.reason', 'Again')->set('form.from_date', '2026-11-21')->set('form.to_date', '2026-11-24')->call('submit')->assertHasErrors('form.from_date');
         $page->set('form.from_date', '2026-11-25')->set('form.to_date', '2026-11-25')->set('form.day_part', 'second_half')->set('form.leave_type_id', (string) $unpaid)->call('submit')->assertHasNoErrors();
         $half = LeaveRequest::latest('id')->first();
-        $this->assertSame(['0.5', 'second_half', '25 Nov 2026 (second half)'], [$half->days, $half->day_part, $half->period()]);
+        $this->assertSame(['0.50', 'second_half', '25 Nov 2026 (second half)'], [$half->days, $half->day_part, $half->period()]);
 
         // Staff cannot approve, and see only their own requests.
         Livewire::actingAs($this->meera)->test(Leave::class)->assertDontSee('Family function')->call('decide', $leave->id, 'approved')->assertForbidden();
@@ -205,7 +213,7 @@ class TeamWorkTest extends TestCase
         $this->assertSame('Your leave was not approved', (new LeaveDecided($half->fresh()))->title());
 
         // The balance counts approved paid days; the rejected and unpaid ones are not counted.
-        Livewire::actingAs($this->ravi)->test(Leave::class)->assertViewHas('summary', fn ($s) => $s['paid'] === 5.0 && $s['left'] === 7.0 && $s['pending'] === 0.0 && $s['unpaid'] === 0.0)
+        Livewire::actingAs($this->ravi)->test(Leave::class)->assertViewHas('balances', fn ($b) => ($cl = $b->firstWhere('code', 'CL')) && $cl['used'] === 5.0 && $cl['left'] === 7.0 && $cl['pending'] === 0.0 && $b->firstWhere('code', 'LOP')['used'] === 0.0)
             ->assertSee('Approved')->assertSee('Rejected')->assertSee('Launch week, please pick another day.');
         // A date that was rejected can be applied for again.
         Livewire::actingAs($this->ravi)->test(Leave::class)->call('apply')->set('form.leave_type_id', (string) $unpaid)->set('form.reason', 'Second try')
@@ -231,8 +239,11 @@ class TeamWorkTest extends TestCase
         // Managers see who is away today and everyone's leave; approved leave and holidays show on the Calendar.
         Livewire::actingAs($this->hr)->withQueryParams(['tab' => 'all'])->test(Leave::class)->assertSee('On leave today:')->assertSee('Ravi Staff')->assertSee('Hari HR')
             ->set('person', (string) $this->hr->id)->assertViewHas('list', fn ($rows) => $rows->pluck('user_id')->unique()->all() === [$this->hr->id]);
-        $events = CalendarEvents::between($this->meera, today_local()->startOfMonth(), today_local()->endOfMonth(), ['team']);
-        $this->assertSame(['2026-11-16', '2026-11-17', '2026-11-19', '2026-11-20', '2026-11-21'], $events->where('title', 'Ravi Staff on leave')->pluck('date')->all());
+        $events = CalendarEvents::between($this->hr, today_local()->startOfMonth(), today_local()->endOfMonth(), ['team']);
+        $this->assertSame(['2026-11-16', '2026-11-17', '2026-11-19', '2026-11-20', '2026-11-21'], $events->where('title', 'Ravi Staff on leave · CL')->pluck('date')->all());
+        // Other staff see holidays but not a colleague's leave; the person sees it as "My leave".
+        $this->assertSame(0, CalendarEvents::between($this->meera, today_local()->startOfMonth(), today_local()->endOfMonth(), ['team'])->filter(fn ($e) => str_contains($e['title'], 'on leave'))->count());
+        $this->assertSame(5, CalendarEvents::between($this->ravi, today_local()->startOfMonth(), today_local()->endOfMonth(), ['team'])->where('title', 'My leave · CL')->count());
         $this->assertSame(['2026-11-18'], $events->where('title', 'Local festival')->pluck('date')->all());
     }
 
@@ -295,12 +306,11 @@ class TeamWorkTest extends TestCase
         $setup->set('holiday.date', '2026-11-04')->set('holiday.name', 'Duplicate')->call('addHoliday')->assertHasErrors('holiday.date');
         $setup->set('holiday.date', '2026-11-27')->set('holiday.name', 'Annual day')->call('addHoliday')->assertHasNoErrors()->assertSee('Annual day');
         $setup->set('setup.weekly_off', ['0', '1', '2', '3', '4', '5', '6'])->call('saveSetup')->assertHasErrors('setup.weekly_off');
-        $setup->set('setup.weekly_off', ['0', '6'])->set('setup.leave_days_per_year', '18')->call('saveSetup')->assertHasNoErrors();
+        $setup->set('setup.weekly_off', ['0', '6'])->call('saveSetup')->assertHasNoErrors();
         Setting::flush();
-        $this->assertSame([[0, 6], '18'], [WorkCalendar::weeklyOff(), setting('leave_days_per_year')]);
+        $this->assertSame([0, 6], WorkCalendar::weeklyOff());
         $this->assertSame(4.0, WorkCalendar::workingDays('2026-11-23', '2026-11-29')); // Mon–Fri minus the new holiday
         $this->assertSame('W', (new AttendanceSheet('2026-11', collect([$this->meera])))->cells[$this->meera->id]['2026-11-07']['code']);
-        Livewire::actingAs($this->meera)->test(Leave::class)->assertViewHas('summary', fn ($s) => $s['allowance'] === 18.0);
         $this->actingAs($this->hr);
         $setup->call('deleteHoliday', Holiday::where('name', 'Annual day')->value('id'));
         $this->assertSame(1, Holiday::count());
@@ -418,5 +428,165 @@ class TeamWorkTest extends TestCase
         $csv = $this->actingAs($this->hr)->get(route('timesheet.export', ['week' => today_local()->toDateString(), 'person' => 'all']))->assertOk()->streamedContent();
         $this->assertStringNotContainsString('Hari HR', $csv);
         $this->assertStringContainsString('"Case study template"', $csv);
+    }
+
+    public function test_tasks_sit_under_projects_with_several_people_working_on_them(): void
+    {
+        $project = Project::create(['client_id' => $this->client->id, 'name' => 'Banner creation', 'owner_id' => $this->admin->id, 'status' => 'active']);
+        $project->members()->sync([$this->ravi->id, $this->meera->id]);
+        $other = Project::create(['client_id' => Client::create(['name' => 'Another client'])->id, 'name' => 'Elsewhere', 'status' => 'active']);
+
+        // Added from the project page: the client and project are fixed, and two people work on it.
+        Livewire::actingAs($this->admin)->test(Index::class, ['projectId' => $project->id])
+            ->call('create')->set('form.title', 'Design three banner sizes')->set('assignees', [(string) $this->ravi->id, (string) $this->meera->id])
+            ->call('save')->assertHasNoErrors()->assertSee('Design three banner sizes');
+        $task = Task::where('title', 'Design three banner sizes')->firstOrFail();
+        $this->assertSame([$project->id, $this->client->id], [$task->project_id, $task->client_id]);
+        $this->assertEqualsCanonicalizing([$this->ravi->id, $this->meera->id], $task->assignees()->pluck('users.id')->all());
+
+        // On the Tasks page a project of another client is refused, and the project filter narrows the list.
+        Livewire::actingAs($this->admin)->test(Index::class)
+            ->call('create')->set('form.client_id', (string) $this->client->id)->set('form.title', 'Loose task')->set('form.project_id', (string) $other->id)
+            ->call('save')->assertHasErrors('form.project_id')
+            ->set('form.project_id', '')->call('save')->assertHasNoErrors()
+            ->assertSee('Loose task')->assertSee('Banner creation')
+            ->set('project', (string) $project->id)->assertSee('Design three banner sizes')->assertDontSee('Loose task')
+            ->set('project', 'none')->assertSee('Loose task')->assertDontSee('Design three banner sizes');
+
+        // Both people find it under "Assigned to me" and may move it along.
+        foreach ([$this->ravi, $this->meera] as $person) {
+            Livewire::actingAs($person)->test(Index::class)->set('assignee', 'me')->assertSee('Design three banner sizes')->assertDontSee('Loose task');
+        }
+        Livewire::actingAs($this->meera)->test(Index::class)->call('setStatus', $task->id, 'in_progress')->assertOk();
+        $this->assertSame('in_progress', $task->fresh()->status);
+
+        // The project page and the project list show the tasks.
+        Livewire::actingAs($this->admin)->test(ProjectShow::class, ['project' => $project])->assertSee('Tasks in this project')->assertSee('1 open · 0 done');
+        Livewire::actingAs($this->admin)->test(Projects::class)->assertSee('Working on it')->assertSee('open of 1');
+    }
+
+    public function test_leave_types_have_yearly_allowances_with_automatic_and_custom_balances(): void
+    {
+        Notification::fake();
+        $type = fn (string $code) => Lookup::where('type', 'leave_type')->where('code', $code)->firstOrFail();
+        $row = fn (User $u, string $code, int $year = 2026) => LeaveBalance::for($u->fresh(), $year)->firstWhere('code', $code);
+
+        // Automatic: CL 12, RH 2, ML 2 a year given in halves (both halves are out by November), EL only what is added, LOP no limit.
+        $this->assertSame([12.0, 2.0, 2.0, 0.0, null], [$row($this->ravi, 'CL')['left'], $row($this->ravi, 'RH')['left'], $row($this->ravi, 'ML')['left'], $row($this->ravi, 'EL')['left'], $row($this->ravi, 'LOP')['left']]);
+        $this->assertSame(1.0, LeaveBalance::allowance($this->ravi, $type('ML'), 2026, null, Carbon::parse('2026-03-10')));
+        $this->assertSame(1.0, $row($this->ravi, 'ML', 2027)['allowance']);   // next year: only the first half so far
+
+        // CL becomes 18 from the year in which someone completes two years.
+        $this->meera->update(['joined_on' => '2024-06-01']);
+        $this->ravi->update(['joined_on' => '2025-06-01']);
+        $this->assertSame([18.0, 12.0, 18.0], [$row($this->meera, 'CL')['allowance'], $row($this->ravi, 'CL')['allowance'], $row($this->ravi, 'CL', 2027)['allowance']]);
+
+        // Staff do not get the manager tabs or actions.
+        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'balances'])->test(Leave::class)->assertSet('tab', 'mine')->assertDontSee('Leave types')
+            ->call('editBalance', $this->meera->id)->assertForbidden();
+        Livewire::actingAs($this->ravi)->test(Leave::class)->call('editType')->assertForbidden();
+
+        // A manager sets a custom CL figure, adds earned leave and a joining date for one person.
+        $page = Livewire::actingAs($this->hr)->withQueryParams(['tab' => 'balances'])->test(Leave::class)->assertSee('Leave left for each person')->assertSee('Ravi Staff');
+        $page->call('editBalance', $this->ravi->id)->assertSee('Leave balances for Ravi Staff')->assertSet('balanceForm.joined_on', '2025-06-01')
+            ->set('balanceForm.rows.'.$type('CL')->id.'.days', '500')->call('saveBalance')->assertHasErrors('balanceForm.rows.'.$type('CL')->id.'.days')
+            ->set('balanceForm.rows.'.$type('CL')->id.'.days', '15')->set('balanceForm.rows.'.$type('EL')->id.'.extra', '4.5')->set('balanceForm.rows.'.$type('EL')->id.'.note', 'Earned in 2026')
+            ->call('saveBalance')->assertHasNoErrors();
+        $this->assertSame([15.0, true, 4.5], [$row($this->ravi, 'CL')['allowance'], $row($this->ravi, 'CL')['custom'], $row($this->ravi, 'EL')['left']]);
+        // Clearing the custom figure goes back to the automatic rule.
+        $page->call('editBalance', $this->ravi->id)->set('balanceForm.rows.'.$type('CL')->id.'.days', '')->call('saveBalance')->assertHasNoErrors();
+        $this->assertSame([12.0, false], [$row($this->ravi, 'CL')['allowance'], $row($this->ravi, 'CL')['custom']]);
+
+        // Leave types: a manager changes the yearly figure and adds a new type.
+        $types = Livewire::actingAs($this->hr)->withQueryParams(['tab' => 'types'])->test(Leave::class)->assertSee('Restricted Holiday')->assertSee('Half on 1 January, half on 1 July');
+        $types->call('editType', $type('RH')->id)->set('typeForm.yearly_days', '3')->call('saveType')->assertHasNoErrors();
+        $types->call('editType')->set('typeForm.name', 'Comp Off')->set('typeForm.code', 'CL')->set('typeForm.yearly_days', '1')->call('saveType')->assertHasErrors('typeForm.code')
+            ->set('typeForm.code', 'co')->set('typeForm.accrual', 'manual')->call('saveType')->assertHasNoErrors();
+        $this->assertSame([3.0, 0.0, 'CO'], [$row($this->ravi, 'RH')['allowance'], $row($this->ravi, 'CO')['allowance'], $type('CO')->code]);
+
+        // Applying: the form shows what is left, more than the balance is refused, and waiting requests count.
+        $apply = Livewire::actingAs($this->ravi)->test(Leave::class)->call('apply')->assertSee('RH · Restricted Holiday (3 remaining)')->assertSee('LOP · Loss of Pay (0 taken, not paid)');
+        $apply->set('form.leave_type_id', (string) $type('ML')->id)->set('form.reason', 'Fever')->set('form.from_date', '2026-11-23')->set('form.to_date', '2026-11-25')->call('submit')->assertHasErrors('form.leave_type_id');
+        $apply->set('form.to_date', '2026-11-24')->call('submit')->assertHasNoErrors();
+        Livewire::actingAs($this->ravi)->test(Leave::class)->call('apply')->set('form.leave_type_id', (string) $type('ML')->id)->set('form.reason', 'Still unwell')
+            ->set('form.from_date', '2026-11-26')->set('form.to_date', '2026-11-26')->set('form.day_part', 'first_half')->call('submit')->assertHasErrors('form.leave_type_id')
+            // A quarter day is loss of pay only, and counts as 0.25.
+            ->set('form.day_part', 'quarter')->set('form.leave_type_id', (string) $type('CL')->id)->call('submit')->assertHasErrors('form.leave_type_id')
+            ->set('form.leave_type_id', (string) $type('LOP')->id)->call('submit')->assertHasNoErrors();
+        $quarter = LeaveRequest::latest('id')->first();
+        $this->assertSame(['0.25', '26 Nov 2026 (quarter day)', 'pending'], [$quarter->days, $quarter->period(), $quarter->status]);
+
+        // A manager adds leave for someone: approved at once, the person is told, staff cannot do it.
+        Livewire::actingAs($this->hr)->test(Leave::class)->call('apply')->assertSee('Leave for')->set('form.user_id', (string) $this->meera->id)
+            ->set('form.leave_type_id', (string) $type('CL')->id)->set('form.reason', 'Informed by phone')->set('form.from_date', '2026-11-30')->set('form.to_date', '2026-12-01')->call('submit')->assertHasNoErrors();
+        $added = LeaveRequest::where('user_id', $this->meera->id)->firstOrFail();
+        $this->assertSame(['approved', $this->hr->id, '2.00'], [$added->status, $added->reviewed_by, $added->days]);
+        Notification::assertSentTo($this->meera, LeaveDecided::class);
+        $this->assertSame(16.0, $row($this->meera, 'CL')['left']);
+        Livewire::actingAs($this->ravi)->test(Leave::class)->call('apply')->assertDontSee('Leave for')->set('form.user_id', (string) $this->meera->id)
+            ->set('form.leave_type_id', (string) $type('LOP')->id)->set('form.reason', 'Sneaky')->set('form.from_date', '2026-12-07')->set('form.to_date', '2026-12-07')->call('submit')->assertHasNoErrors();
+        $this->assertSame($this->ravi->id, LeaveRequest::latest('id')->first()->user_id);
+
+        // The calendar: an Apply button that opens the form on the chosen day, and pending leave marked as waiting.
+        Livewire::actingAs($this->ravi)->withQueryParams(['day' => '2026-11-27'])->test(\App\Livewire\Calendar\Index::class)->assertSee('Apply for leave')->assertSee('Apply for leave on this day')->assertSee('My leave · ML (waiting)');
+        Livewire::actingAs($this->ravi)->withQueryParams(['apply' => 1, 'date' => '2026-11-27'])->test(Leave::class)->assertSet('showForm', true)->assertSet('form.from_date', '2026-11-27');
+    }
+
+    public function test_profile_has_details_policies_meeting_notes_and_devices(): void
+    {
+        $subAdmin = User::factory()->create(['name' => 'Sam Admin', 'role' => User::ROLE_SUB_ADMIN]);
+        Equipment::create(['name' => 'MacBook Air', 'serial_number' => 'SN-RAVI-1', 'user_id' => $this->ravi->id, 'assigned_on' => '2026-01-05']);
+        Equipment::create(['name' => 'Dell Monitor', 'user_id' => $this->meera->id]);
+
+        // Everyone has their own profile, with their leave boxes; other people's are refused.
+        $this->actingAs($this->ravi)->get('/profile')->assertOk()->assertSee('My Profile')->assertSee('Personal details')->assertSee('Apply for leave')->assertSee('Rules &amp; Policies', false);
+        $this->actingAs($this->ravi)->get('/profile/'.$this->meera->id)->assertForbidden();
+        $this->actingAs($subAdmin)->get('/profile')->assertOk()->assertDontSee('Apply for leave');
+        $this->actingAs($subAdmin)->get('/profile/'.$this->admin->id)->assertForbidden();
+        // Super Admins open anyone's; Admins and leave managers open staff.
+        $this->actingAs($this->admin)->get('/profile/'.$subAdmin->id)->assertOk()->assertSee('Sam Admin');
+        $this->actingAs($subAdmin)->get('/profile/'.$this->ravi->id)->assertOk();
+        $this->actingAs($this->hr)->get('/profile/'.$this->ravi->id)->assertOk()->assertSee('Back to Leave');
+        $this->actingAs($this->hr)->get('/profile/'.$this->admin->id)->assertForbidden();
+
+        // A person fills in their own details. The joining date is not theirs to set.
+        $mine = Livewire::actingAs($this->ravi)->test(Profile::class)->call('editDetails', 'personal')->assertDontSee('Joined on</label>', false)
+            ->set('form.personal_email', 'not-an-email')->set('form.blood_group', 'Z')->call('saveDetails')->assertHasErrors(['form.personal_email', 'form.blood_group'])
+            ->set('form.personal_email', 'ravi@home.test')->set('form.blood_group', 'O+')->set('form.city', 'Kozhikode')->set('form.joined_on', '2020-01-01')->set('form.role', 'super_admin')
+            ->call('saveDetails')->assertHasNoErrors()->assertSee('Kozhikode');
+        $mine->call('editDetails', 'emergency')->set('form.emergency_name', 'Latha')->set('form.emergency_phone', '9000000001')->call('saveDetails')->assertHasNoErrors()->assertSee('Latha');
+        $ravi = $this->ravi->fresh();
+        $this->assertSame(['ravi@home.test', 'O+', 'Kozhikode', 'Latha', null, User::ROLE_STAFF], [$ravi->personal_email, $ravi->blood_group, $ravi->city, $ravi->emergency_name, $ravi->joined_on, $ravi->role]);
+        // A manager sets the joining date on someone's profile.
+        Livewire::actingAs($this->hr)->test(Profile::class, ['user' => $this->ravi])->call('editDetails', 'personal')->set('form.joined_on', '2024-03-01')->call('saveDetails')->assertHasNoErrors();
+        $this->assertSame('2024-03-01', $this->ravi->fresh()->joined_on->toDateString());
+
+        // Rules & Policies: written by Super Admins, read by everyone.
+        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'policies'])->test(Profile::class)->assertSee('No rules or policies have been added yet')->assertDontSee('Add policy')
+            ->call('editPolicy')->assertForbidden();
+        Livewire::actingAs($this->admin)->withQueryParams(['tab' => 'policies'])->test(Profile::class)->call('editPolicy')->call('savePolicy')->assertHasErrors(['form.title', 'form.body'])
+            ->set('form.title', 'Working hours')->set('form.body', '<div>Office time is <strong>9:30 to 6</strong>.</div><script>alert(1)</script>')->call('savePolicy')->assertHasNoErrors()->assertSee('Working hours');
+        $policy = Policy::firstOrFail();
+        $this->assertSame('<div>Office time is <strong>9:30 to 6</strong>.</div>', $policy->body);
+        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'policies'])->test(Profile::class)->assertSee('Working hours')->assertSee('9:30 to 6')
+            ->call('deletePolicy', $policy->id)->assertForbidden();
+
+        // Meeting notes: a manager writes them on a person's profile; the person reads the shared ones only.
+        $notes = Livewire::actingAs($this->admin)->withQueryParams(['tab' => 'notes'])->test(Profile::class, ['user' => $this->ravi]);
+        $notes->call('editNote')->set('form.title', 'Quarterly review')->set('form.held_on', '2026-11-10')->set('form.notes', '<div>Doing well.</div>')->call('saveNote')->assertHasNoErrors();
+        $notes->call('editNote')->set('form.title', 'Salary discussion')->set('form.notes', '<div>Private.</div>')->set('form.shared', false)->call('saveNote')->assertHasNoErrors()
+            ->assertSee('Salary discussion')->assertSee('Managers only');
+        $this->assertSame([$this->ravi->id, $this->admin->id], [MeetingNote::first()->user_id, MeetingNote::first()->created_by]);
+        $private = MeetingNote::where('shared', false)->firstOrFail();
+        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'notes'])->test(Profile::class)->assertSee('Quarterly review')->assertSee('Asha Admin')->assertDontSee('Salary discussion')
+            ->assertDontSee('Add meeting note')->call('editNote')->assertForbidden();
+        Livewire::actingAs($this->ravi)->test(Profile::class)->call('deleteNote', $private->id)->assertForbidden();
+        // Nobody writes notes on their own profile, and a note of one person cannot be reached from another profile.
+        Livewire::actingAs($this->admin)->test(Profile::class)->call('editNote')->assertForbidden();
+        Livewire::actingAs($this->admin)->test(Profile::class, ['user' => $this->meera])->call('deleteNote', $private->id)->assertNotFound();
+
+        // Allocated devices: only that person's items.
+        Livewire::actingAs($this->ravi)->withQueryParams(['tab' => 'devices'])->test(Profile::class)->assertSee('MacBook Air')->assertSee('SN-RAVI-1')->assertDontSee('Dell Monitor')->assertDontSee('Manage in Equipment');
+        Livewire::actingAs($this->admin)->withQueryParams(['tab' => 'devices'])->test(Profile::class, ['user' => $this->meera])->assertSee('Dell Monitor')->assertSee('Manage in Equipment');
     }
 }

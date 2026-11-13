@@ -10,7 +10,7 @@ class Lookup extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['is_active' => 'boolean', 'is_paid' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean', 'is_paid' => 'boolean', 'yearly_days' => 'decimal:2', 'senior_days' => 'decimal:2', 'senior_after_years' => 'integer'];
 
     public const TYPES = [
         'work_type' => 'Work types',

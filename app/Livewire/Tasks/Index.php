@@ -4,6 +4,7 @@ namespace App\Livewire\Tasks;
 
 use App\Models\Client;
 use App\Models\Lead;
+use App\Models\Project;
 use App\Models\Quote;
 use App\Models\Task;
 use App\Models\User;
@@ -17,7 +18,7 @@ use Livewire\WithPagination;
 
 /**
  * Tasks and follow-ups in one list. Used as the Tasks page, as a tab on a client profile
- * (clientId) and as a panel on a lead (leadId).
+ * (clientId), as a panel on a lead (leadId) and as the task list of one project (projectId).
  */
 #[Title('Tasks & Follow-ups')]
 class Index extends Component
@@ -30,8 +31,15 @@ class Index extends Component
     #[Locked]
     public ?int $leadId = null;
 
+    #[Locked]
+    public ?int $projectId = null;
+
     #[Url(except: '')]
     public string $search = '';
+
+    /** Project id, or 'none' for tasks outside any project. */
+    #[Url(except: '')]
+    public string $project = '';
 
     /** open | due | overdue | todo | in_progress | done | all */
     #[Url(except: 'open')]
@@ -46,10 +54,15 @@ class Index extends Component
 
     public array $form = [];
 
-    public function mount(?int $clientId = null, ?int $leadId = null): void
+    /** User ids of the people on the task being added or edited. */
+    public array $assignees = [];
+
+    public function mount(?int $clientId = null, ?int $leadId = null, ?int $projectId = null): void
     {
-        $this->clientId = $clientId;
         $this->leadId = $leadId;
+        $this->projectId = $projectId;
+        // A project's tasks always belong to the project's client.
+        $this->clientId = $projectId ? Project::findOrFail($projectId)->client_id : $clientId;
         $this->resetForm();
     }
 
@@ -66,8 +79,12 @@ class Index extends Component
 
     public function updated($property): void
     {
-        if (in_array($property, ['search', 'status', 'assignee'], true)) {
+        if (in_array($property, ['search', 'status', 'assignee', 'project'], true)) {
             $this->resetPage();
+        }
+        // Changing the client clears a project that belongs to another client.
+        if ($property === 'form.client_id' || $property === 'form.for') {
+            $this->form['project_id'] = '';
         }
     }
 
@@ -82,8 +99,10 @@ class Index extends Component
         $this->form = [
             'for' => $this->leadId ? 'lead' : 'client',
             'client_id' => (string) ($this->clientId ?? ''), 'lead_id' => (string) ($this->leadId ?? ''),
-            'title' => '', 'assignee_id' => (string) auth()->id(), 'due_date' => '', 'status' => 'todo', 'notes' => '',
+            'project_id' => (string) ($this->projectId ?? ''),
+            'title' => '', 'due_date' => '', 'status' => 'todo', 'notes' => '',
         ];
+        $this->assignees = [(string) auth()->id()];
         $this->editingId = null;
     }
 
@@ -104,9 +123,10 @@ class Index extends Component
         $this->form = [
             'for' => $task->client_id ? 'client' : 'lead',
             'client_id' => (string) ($task->client_id ?? ''), 'lead_id' => (string) ($task->lead_id ?? ''),
-            'title' => $task->title, 'assignee_id' => (string) ($task->assignee_id ?? ''),
+            'project_id' => (string) ($task->project_id ?? ''), 'title' => $task->title,
             'due_date' => $task->due_date?->format('Y-m-d') ?? '', 'status' => $task->status, 'notes' => (string) $task->notes,
         ];
+        $this->assignees = $task->assignees()->pluck('users.id')->map(fn ($id) => (string) $id)->all();
         $this->showForm = true;
     }
 
@@ -120,7 +140,13 @@ class Index extends Component
         } elseif ($this->leadId) {
             $this->form = ['for' => 'lead', 'lead_id' => (string) $this->leadId, 'client_id' => ''] + $this->form;
         }
+        if ($this->projectId) {
+            $this->form['project_id'] = (string) $this->projectId;
+        }
         $forLead = $this->form['for'] === 'lead';
+        if ($forLead) {
+            $this->form['project_id'] = '';
+        }
         abort_if($forLead && ! Gate::allows('sales.manage'), 403);
 
         $this->validate([
@@ -128,24 +154,29 @@ class Index extends Component
             'form.client_id' => [Rule::requiredIf(! $forLead), 'nullable', 'exists:clients,id'],
             'form.lead_id' => [Rule::requiredIf($forLead), 'nullable', 'exists:leads,id'],
             'form.title' => ['required', 'string', 'max:255'],
-            'form.assignee_id' => ['nullable', 'exists:users,id'],
+            // Only a project of the same client can be chosen.
+            'form.project_id' => ['nullable', Rule::exists('projects', 'id')->where('client_id', $this->form['client_id'] ?: 0)],
+            'assignees' => ['array'],
+            'assignees.*' => [Rule::exists('users', 'id')->where('is_active', true)->whereNot('role', User::ROLE_SUB_ADMIN)],
             'form.due_date' => ['nullable', 'date'],
             'form.status' => ['required', Rule::in(array_keys(Task::STATUSES))],
             'form.notes' => ['nullable', 'string', 'max:5000'],
-        ], [], ['form.client_id' => 'client', 'form.lead_id' => 'lead', 'form.title' => 'title', 'form.assignee_id' => 'assignee', 'form.due_date' => 'due date']);
+        ], ['form.project_id.exists' => 'Choose a project that belongs to this client.'], ['form.client_id' => 'client', 'form.lead_id' => 'lead', 'form.project_id' => 'project', 'form.title' => 'title', 'assignees.*' => 'person', 'form.due_date' => 'due date']);
 
         $lead = $forLead ? Lead::find($this->form['lead_id']) : null;
         $data = [
             // A task on a converted lead is filed under its client too, so it shows on both.
             'client_id' => $forLead ? $lead?->client_id : $this->form['client_id'],
             'lead_id' => $forLead ? $lead?->id : null,
-            'title' => $this->form['title'], 'assignee_id' => $this->form['assignee_id'] ?: null,
+            'project_id' => $forLead ? null : ($this->form['project_id'] ?: null),
+            'title' => $this->form['title'],
             'due_date' => $this->form['due_date'] ?: null, 'status' => $this->form['status'], 'notes' => $this->form['notes'] ?: null,
         ];
 
-        $this->editingId
-            ? $this->findTask($this->editingId)->update($data)
+        $task = $this->editingId
+            ? tap($this->findTask($this->editingId))->update($data)
             : Task::create($data + ['created_by' => auth()->id()]);
+        $task->assignTo($this->assignees);
 
         $this->showForm = false;
         $this->resetForm();
@@ -156,7 +187,7 @@ class Index extends Component
     {
         // Assignees may move their own tasks along without the manage permission.
         $task = $this->findTask($id);
-        abort_unless($this->canManage() || $task->assignee_id === auth()->id(), 403);
+        abort_unless($this->canManage() || $task->isAssignedTo(auth()->id()), 403);
         abort_unless(array_key_exists($status, Task::STATUSES), 422);
         $task->update(['status' => $status]);
     }
@@ -178,6 +209,7 @@ class Index extends Component
         return Task::query()
             ->when($this->clientId, fn ($q) => $q->where('client_id', $this->clientId))
             ->when($this->leadId, fn ($q) => $q->where('lead_id', $this->leadId))
+            ->when($this->projectId, fn ($q) => $q->where('project_id', $this->projectId))
             ->findOrFail($id);
     }
 
@@ -187,7 +219,7 @@ class Index extends Component
      */
     protected function alsoDue()
     {
-        if ($this->clientId || $this->leadId || ! Gate::allows('sales.manage')) {
+        if ($this->clientId || $this->leadId || $this->projectId || ! Gate::allows('sales.manage')) {
             return collect();
         }
         $today = today_local()->toDateString();
@@ -206,13 +238,17 @@ class Index extends Component
     {
         $today = today_local()->toDateString();
 
-        $tasks = Task::query()->with(['client', 'lead', 'assignee'])
+        $tasks = Task::query()->with(['client', 'lead', 'project', 'assignees'])
             ->when($this->clientId, fn ($q) => $q->where('client_id', $this->clientId))
             ->when($this->leadId, fn ($q) => $q->where('lead_id', $this->leadId))
+            ->when($this->projectId, fn ($q) => $q->where('project_id', $this->projectId))
+            ->when(! $this->projectId && $this->project === 'none', fn ($q) => $q->whereNull('project_id'))
+            ->when(! $this->projectId && ctype_digit($this->project), fn ($q) => $q->where('project_id', $this->project))
             ->when($this->search, fn ($q, $s) => $q->where(fn ($q) => $q->where('title', 'like', "%{$s}%")
                 ->orWhereHas('client', fn ($q) => $q->where('name', 'like', "%{$s}%"))
+                ->orWhereHas('project', fn ($q) => $q->where('name', 'like', "%{$s}%"))
                 ->orWhereHas('lead', fn ($q) => $q->where('name', 'like', "%{$s}%"))))
-            ->when($this->assignee, fn ($q, $v) => $v === 'me' ? $q->where('assignee_id', auth()->id()) : $q->where('assignee_id', $v))
+            ->when($this->assignee, fn ($q, $v) => $q->assignedTo($v === 'me' ? auth()->id() : $v))
             ->when($this->status === 'open', fn ($q) => $q->open())
             ->when($this->status === 'due', fn ($q) => $q->open()->where('due_date', '<=', $today))
             ->when($this->status === 'overdue', fn ($q) => $q->open()->where('due_date', '<', $today))
@@ -221,6 +257,8 @@ class Index extends Component
             ->paginate(25);
 
         $embedded = (bool) ($this->clientId || $this->leadId);
+        $formClient = $this->form['for'] === 'client' ? ($this->form['client_id'] ?? null) : null;
+        $projectAccess = Gate::allows('workspace') && Gate::allows('clients.view');
         $canSales = Gate::allows('sales.manage');
 
         return view('livewire.tasks.index', [
@@ -228,6 +266,13 @@ class Index extends Component
             'embedded' => $embedded,
             'canManage' => $this->canManage(),
             'canSales' => $canSales,
+            'inProject' => (bool) $this->projectId,
+            'projectAccess' => $projectAccess,
+            // Filter: projects that have tasks (inside a client profile, that client's only).
+            'projectOptions' => $this->projectId || $this->leadId ? collect() : Project::query()->whereHas('tasks')
+                ->when($this->clientId, fn ($q) => $q->where('client_id', $this->clientId))->orderBy('name')->get(['id', 'name']),
+            'formProjects' => $this->showForm && $formClient && ! $this->projectId
+                ? Project::where('client_id', $formClient)->where(fn ($q) => $q->open()->orWhere('id', $this->form['project_id'] ?: 0))->orderBy('name')->get(['id', 'name']) : collect(),
             'alsoDue' => $this->alsoDue(),
             'users' => User::active()->where('role', '!=', User::ROLE_SUB_ADMIN)->orderBy('name')->get(['id', 'name']),
             'clients' => $this->showForm && ! $embedded ? Client::notArchived()->orderBy('name')->get(['id', 'name']) : collect(),

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Holiday;
+use App\Models\LeaveRequest;
 use Illuminate\Support\Carbon;
 
 /**
@@ -33,7 +34,7 @@ class WorkCalendar
         return in_array($date->dayOfWeek, self::weeklyOff(), true);
     }
 
-    /** Working days from $from to $to inclusive. A half day on a single working date counts as 0.5. */
+    /** Working days from $from to $to inclusive. On a single working date a half day counts as 0.5 and a quarter day as 0.25. */
     public static function workingDays(string $from, string $to, string $dayPart = 'full'): float
     {
         $holidays = self::holidays($from, $to);
@@ -44,6 +45,6 @@ class WorkCalendar
             }
         }
 
-        return $dayPart !== 'full' && $from === $to ? $days * 0.5 : (float) $days;
+        return $dayPart !== 'full' && $from === $to ? $days * (LeaveRequest::DAY_FRACTIONS[$dayPart] ?? 0.5) : (float) $days;
     }
 }

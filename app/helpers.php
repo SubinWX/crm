@@ -124,3 +124,11 @@ if (! function_exists('plain_text')) {
         return RichText::plain($text);
     }
 }
+
+if (! function_exists('fmt_days')) {
+    /** A number of leave days without trailing zeros: 2, 1.5, 19.75. */
+    function fmt_days(mixed $days): string
+    {
+        return rtrim(rtrim(number_format((float) $days, 2, '.', ''), '0'), '.');
+    }
+}

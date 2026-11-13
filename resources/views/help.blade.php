@@ -16,6 +16,7 @@
         ['gst', 'GST invoices and summary', $can('finance')],
         ['support', 'Support portal and tickets', $can('support.manage') || $can('portal-users.manage')],
         ['posters', 'Social media posters', $can('posters.view')],
+        ['profile', 'My Profile', true],
         ['equipment', 'Equipment', true],
         ['notifications', 'Notifications and reminders', $team],
         ['careers', 'Careers and job applications', $can('careers.manage')],
@@ -127,11 +128,12 @@
             @if ($can('tasks.view'))
                 <section id="tasks" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Tasks and follow-ups</h2>
-                    <p><strong>Work → Tasks &amp; Follow-ups</strong> is one list for work to do and things to chase, for clients{{ $can('sales.manage') ? ' and leads' : '' }}.</p>
+                    <p><strong>Projects → Tasks &amp; Follow-ups</strong> is one list for work to do and things to chase, for clients{{ $can('sales.manage') ? ' and leads' : '' }}.</p>
                     <ul>
                         <li>Start the day with the filters <strong>Due today or overdue</strong> and <strong>Assigned to me</strong>.</li>
                         <li>Change a task's status straight from the list. You can always update tasks assigned to you.</li>
-                        @if ($can('tasks.manage')) <li>Use <strong>New Task</strong> here, or on the Tasks tab of a client, to add one with an assignee and due date.</li> @endif
+                        @if ($can('tasks.manage')) <li>Use <strong>New Task</strong> here, or on the Tasks tab of a client, to add one with a due date. Tick everyone who is working on it, and choose the project it belongs to.</li> @endif
+                        <li>A task can sit under a <strong>project</strong>. Open the project to see and add its tasks, or filter this list by project.</li>
                         @if ($can('sales.manage')) <li>A strip at the top lists lead next actions and quote follow-up dates that are due.</li> @endif
                     </ul>
                 </section>
@@ -159,7 +161,7 @@
 
                 <section id="projects" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Projects and services</h2>
-                    <p><strong>Work → Projects &amp; Services</strong> tracks each client's projects and ongoing services: owner, status, deadline and the next milestone. A project can be linked to the accepted quote it came from. Overdue deadlines are flagged in red.</p>
+                    <p><strong>Projects → Projects &amp; Services</strong> tracks each client's projects and ongoing services: the project owner, the people working on it, its tasks, status, deadline and the next milestone. Open a project to add tasks under it; each task can have several people. A project can be linked to the accepted quote it came from. Overdue deadlines are flagged in red.</p>
                 </section>
             @endif
 
@@ -255,11 +257,14 @@
                         <li>Forgot to start it? Switch to <strong>Manual</strong> and add the hours in one line (1.5 means 1 hour 30 minutes).</li>
                         <li>The list below shows each day with its total. The ▶ button starts the timer again for the same work. You can change entries for the last 14 days.</li>
                     </ol>
-                    <p>The <strong>Overview</strong> tab shows the week by day and by project. <strong>Work → Projects &amp; Services</strong> shows the time tracked by each person, and who is working right now.</p>
-                    <p>Each project page (<strong>Work → Projects &amp; Services</strong>, then open a project) shows the hours spent against the estimate, and who spent them.</p>
+                    <p>The <strong>Overview</strong> tab shows the week by day and by project. <strong>Projects → Projects &amp; Services</strong> shows the time tracked by each person, and who is working right now.</p>
+                    <p>Each project page (<strong>Projects → Projects &amp; Services</strong>, then open a project) shows the hours spent against the estimate, and who spent them.</p>
                     <h3>Applying for leave</h3>
                     <ol>
-                        <li>Open <strong>Team → Leave</strong> and press <strong>Apply for leave</strong>.</li>
+                        <li>Open <strong>Team → Leave</strong> and press <strong>Apply for leave</strong>, or use <strong>Apply for leave</strong> on the Calendar (pick a day first to start on that day).</li>
+                        <li>The boxes at the top show what you have left of each type: CL (casual), EL (earned), RH (restricted holiday), ML (medical) and LOP (loss of pay, no limit). You cannot apply for more than is left; use LOP for the rest.</li>
+                        <li>For one date you can take a full day, a half day or a quarter day. A quarter day is always loss of pay.</li>
+                        <li>Your leave shows on your Calendar, marked “waiting” until it is approved.</li>
                         <li>Pick the type, the first and last day (or half a day), and give a reason. Weekly offs and company holidays in between are not counted.</li>
                         <li>You are told by notification and email when it is approved or rejected. You can cancel a request that is still waiting, or approved leave that has not started.</li>
                     </ol>
@@ -270,7 +275,10 @@
                         <ul>
                             <li><strong>Leave → To approve</strong> lists requests waiting for you. Approve, or reject with a short reason. <strong>Everyone’s leave</strong> shows the whole team for the year.</li>
                             <li><strong>Attendance → Team sheet</strong> is the monthly grid. Click a day to mark someone present, absent, half day or working from home. Click a date at the top to mark everyone unmarked on that day as present. Export it as a spreadsheet.</li>
-                            <li><strong>Attendance → Holidays &amp; settings</strong> holds the company holidays, the weekly off days and the paid leave days per year.</li>
+                            <li><strong>Attendance → Holidays &amp; settings</strong> holds the company holidays and the weekly off days.</li>
+                            <li><strong>Leave → Leave types</strong> sets each type's days per year, whether it is given all at once or half-yearly, and a higher figure after years of service (for example CL 12, then 18 after 2 years).</li>
+                            <li><strong>Leave → Balances</strong> shows what everyone has left. <strong>Edit</strong> sets a person's joining date, a custom yearly figure, or adds days such as earned leave.</li>
+                            <li>In <strong>Apply for leave</strong>, choose a person under “Leave for” to add leave for them; it is approved straight away.</li>
                             <li><strong>Timesheet</strong> lets you view one person or everyone, correct any entry and export the week.</li>
                         </ul>
                     @endif
@@ -305,14 +313,28 @@
             @if ($can('posters.view'))
                 <section id="posters" class="card p-5 text-sm leading-relaxed text-stone-700">
                     <h2>Social media posters</h2>
-                    <p><strong>Work → Social Media Posters</strong> is the library of finished creatives. Search by title, caption, tag or campaign and filter by platform or client. Click a poster for the full-size preview and <strong>Download original</strong>.{{ $can('posters.manage') ? ' Use Upload Poster to add one with a title, platform, client, caption and tags.' : '' }}</p>
+                    <p><strong>Office → Social Media Posters</strong> is the library of finished creatives. Search by title, caption, tag or campaign and filter by platform or client. Click a poster for the full-size preview and <strong>Download original</strong>.{{ $can('posters.manage') ? ' Use Upload Poster to add one with a title, platform, client, caption and tags.' : '' }}</p>
                 </section>
             @endif
+
+            <section id="profile" class="card p-5 text-sm leading-relaxed text-stone-700">
+                <h2>My Profile</h2>
+                <p><strong>Team → My Profile</strong> (also in the menu under your name, top right) is your own page. On the left are your picture and the leave you have left this year. It has four tabs:</p>
+                <ul>
+                    <li><strong>Details</strong> — your phone numbers, personal email, date of birth, address, blood group and an emergency contact. Press <em>Edit</em> to fill them in.</li>
+                    <li><strong>Rules &amp; Policies</strong> — the company’s rules, the same for everyone.@if ($can('admin')) As a Super Admin you add, edit and delete them here.@endif</li>
+                    <li><strong>Meeting Notes</strong> — notes of reviews and one-to-one meetings held with you, written by a manager.</li>
+                    <li><strong>Allocated Devices</strong> — the laptops, phones and other items issued to you.</li>
+                </ul>
+                @if ($can('staff.manage') || $can('team.manage'))
+                    <p><strong>Someone else’s profile:</strong> press <em>Profile</em> next to a person in <strong>Administration → Staff</strong>, or their name in <strong>Leave → Balances</strong>. There you can correct their details, set their joining date and add meeting notes. Untick “can read this note” to keep a note for managers only.</p>
+                @endif
+            </section>
 
             <section id="equipment" class="card p-5 text-sm leading-relaxed text-stone-700">
                 <h2>Equipment</h2>
                 @if ($can('admin'))
-                    <p><strong>Work → Equipment</strong> is the register of laptops, phones and other items. Add an item, choose who it is assigned to, and record its serial number, condition and cost. The buttons along the top filter by person; unassigned items sit under <em>In stock</em>.</p>
+                    <p><strong>Office → Equipment</strong> is the register of laptops, phones and other items. Add an item, choose who it is assigned to, and record its serial number, condition and cost. The buttons along the top filter by person; unassigned items sit under <em>In stock</em>.</p>
                 @else
                     <p><strong>My Equipment</strong> lists the items issued to you. If something is wrong or missing, tell a Super Admin.</p>
                 @endif

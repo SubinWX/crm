@@ -68,7 +68,7 @@ class Show extends Component
             'financials' => Gate::allows('finance') ? $this->client->financials() : null,
             'hosting' => $this->tab === 'overview'
                 ? $this->client->hostingRecords()->with(['serverType', 'serverProvider'])->orderBy('next_payment_date')->get() : collect(),
-            'openTasks' => $this->tab === 'overview' && Gate::allows('workspace') ? $this->client->tasks()->open()->with('assignee')->orderBy('due_date')->limit(5)->get() : collect(),
+            'openTasks' => $this->tab === 'overview' && Gate::allows('workspace') ? $this->client->tasks()->open()->with('assignees')->orderBy('due_date')->limit(5)->get() : collect(),
             'activity' => $this->tab === 'activity'
                 ? ActivityLog::with('user')->where('client_id', $this->client->id)
                     // Staff do not see financial entries in the client timeline.

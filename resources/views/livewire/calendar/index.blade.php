@@ -6,6 +6,7 @@
             <button type="button" class="btn-secondary" wire:click="move(1)" aria-label="Next month">→</button>
         </div>
         <button type="button" class="btn-secondary" wire:click="goToday">Today</button>
+        @if ($canLeave) <a href="{{ route('leave', array_filter(['apply' => 1, 'date' => $day && $day >= $today ? $day : null])) }}" class="btn-primary"><x-icon name="plus" /> Apply for leave</a> @endif
     </x-page-header>
 
     {{-- Legend doubles as the filter: click a kind to hide or show it. --}}
@@ -55,6 +56,9 @@
                 <h2 class="card-title">{{ $day ? \Illuminate\Support\Carbon::parse($day)->format('l, d F Y') : 'Everything in '.$first->format('F Y') }}</h2>
                 @if ($day) <button type="button" class="link text-xs" wire:click="selectDay('{{ $day }}')">Show whole month</button> @endif
             </div>
+            @if ($canLeave && $day && $day >= $today)
+                <div class="border-b border-stone-100 px-4 py-2.5"><a href="{{ route('leave', ['apply' => 1, 'date' => $day]) }}" class="link text-sm">+ Apply for leave on this day</a></div>
+            @endif
             <div class="max-h-[40rem] overflow-y-auto">
                 @forelse ($list as $event)
                     @php [, $colour, , $single] = \App\Support\CalendarEvents::TYPES[$event['type']]; @endphp

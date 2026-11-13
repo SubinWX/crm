@@ -13,13 +13,18 @@ class LeaveRequest extends Model
 
     public const BADGES = ['pending' => 'badge-amber', 'approved' => 'badge-green', 'rejected' => 'badge-red', 'cancelled' => 'badge-gray'];
 
-    public const DAY_PARTS = ['full' => 'Full day', 'first_half' => 'First half', 'second_half' => 'Second half'];
+    public const DAY_PARTS = ['full' => 'Full day', 'first_half' => 'Half day (first half)', 'second_half' => 'Half day (second half)', 'quarter' => 'Quarter day (QLOP)'];
+
+    /** Share of one working day each part uses. */
+    public const DAY_FRACTIONS = ['full' => 1.0, 'first_half' => 0.5, 'second_half' => 0.5, 'quarter' => 0.25];
+
+    public const SHORT_PARTS = ['first_half' => 'first half', 'second_half' => 'second half', 'quarter' => 'quarter day'];
 
     protected $guarded = [];
 
     protected $attributes = ['status' => 'pending', 'day_part' => 'full'];
 
-    protected $casts = ['from_date' => 'date', 'to_date' => 'date', 'days' => 'decimal:1', 'reviewed_at' => 'datetime'];
+    protected $casts = ['from_date' => 'date', 'to_date' => 'date', 'days' => 'decimal:2', 'reviewed_at' => 'datetime'];
 
     public function user(): BelongsTo
     {
@@ -46,6 +51,6 @@ class LeaveRequest extends Model
     {
         $range = $this->from_date->equalTo($this->to_date) ? fmt_date($this->from_date) : fmt_date($this->from_date).' to '.fmt_date($this->to_date);
 
-        return $range.($this->day_part !== 'full' ? ' ('.strtolower(self::DAY_PARTS[$this->day_part] ?? '').')' : '');
+        return $range.($this->day_part !== 'full' ? ' ('.(self::SHORT_PARTS[$this->day_part] ?? '').')' : '');
     }
 }

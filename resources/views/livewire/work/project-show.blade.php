@@ -30,6 +30,11 @@
                 </div>
             </section>
 
+            @if ($canTasks)
+                <div id="tasks" class="scroll-mt-20"></div>
+                <livewire:tasks.index :project-id="$project->id" :key="'tasks-project-'.$project->id" />
+            @endif
+
             <section class="card">
                 <div class="card-header"><h2 class="card-title">{{ $manager ? 'Time entries' : 'My time on this project' }}</h2><a href="{{ route('timesheet', ['project' => $project->id]) }}" class="link text-xs">Open in Timesheet</a></div>
                 <div class="table-wrap">
@@ -57,7 +62,8 @@
                 <div class="card-header"><h2 class="card-title">Details</h2></div>
                 <dl class="space-y-3 p-4 text-sm">
                     <div><dt class="label">Client</dt><dd><a class="link" href="{{ route('clients.show', ['client' => $project->client_id, 'tab' => 'projects']) }}">{{ $project->client->name }}</a></dd></div>
-                    <div><dt class="label">Owner</dt><dd>{{ $project->owner?->name ?? 'Unassigned' }}</dd></div>
+                    <div><dt class="label">Project owner</dt><dd>{{ $project->owner?->name ?? 'Unassigned' }}</dd></div>
+                    <div><dt class="label">Tasks</dt><dd>{{ $tasksOpen }} open · {{ $tasksDone }} done</dd></div>
                     <div><dt class="label">Start</dt><dd>{{ fmt_date($project->start_date) }}</dd></div>
                     <div><dt class="label">Next milestone</dt><dd>{{ $project->next_milestone ?: '—' }}@if ($project->next_milestone_date) <span class="text-stone-500">· {{ fmt_date($project->next_milestone_date) }}</span>@endif</dd></div>
                     @if ($project->quote) <div><dt class="label">Quote</dt><dd class="font-mono">{{ $project->quote->number }}</dd></div> @endif
@@ -66,7 +72,7 @@
             </section>
 
             <section class="card">
-                <div class="card-header"><h2 class="card-title">Team</h2><span class="text-xs text-stone-500">{{ $project->members->count() ?: 'Open to everyone' }}</span></div>
+                <div class="card-header"><h2 class="card-title">Working on it</h2><span class="text-xs text-stone-500">{{ $project->members->count() ?: 'Open to everyone' }}</span></div>
                 <div class="p-4">
                     @forelse ($project->members as $member)
                         <div class="flex items-center gap-2.5 py-1.5 text-sm" wire:key="member-{{ $member->id }}"><x-avatar :src="$member->avatarUrl()" :name="$member->name" size="size-7" class="text-[10px]" /> <span class="truncate">{{ $member->name }}</span></div>

@@ -48,6 +48,11 @@ class Project extends Model
         return $this->belongsToMany(User::class)->orderBy('name');
     }
 
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);

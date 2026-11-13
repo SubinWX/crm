@@ -20,7 +20,7 @@
 
     <div class="card">
         <div class="flex flex-wrap items-center gap-3 border-b border-stone-200 p-4">
-            @if ($embedded) <h2 class="card-title">Tasks &amp; follow-ups</h2> @endif
+            @if ($embedded) <h2 class="card-title">{{ $inProject ? 'Tasks in this project' : 'Tasks & follow-ups' }}</h2> @endif
             <div class="relative w-full md:w-64">
                 <x-icon name="search" class="pointer-events-none absolute top-2.5 left-3 size-4 text-stone-400" />
                 <input type="search" class="input pl-9" placeholder="Search tasks…" wire:model.live.debounce.300ms="search" aria-label="Search tasks">
@@ -34,16 +34,25 @@
                 <option value="">Anyone</option><option value="me">Assigned to me</option>
                 @foreach ($users as $u) <option value="{{ $u->id }}">{{ $u->name }}</option> @endforeach
             </select>
+            @if ($projectOptions->isNotEmpty())
+                <select class="input w-auto max-w-56" wire:model.live="project" aria-label="Project">
+                    <option value="">All projects</option><option value="none">Not in a project</option>
+                    @foreach ($projectOptions as $p) <option value="{{ $p->id }}">{{ $p->name }}</option> @endforeach
+                </select>
+            @endif
             @if ($embedded && $canManage) <button type="button" class="btn-primary btn-sm ml-auto" wire:click="create"><x-icon name="plus" /> New Task</button> @endif
         </div>
         <div class="table-wrap">
             <table class="table">
-                <thead><tr><th>Task</th>@unless ($embedded)<th>For</th>@endunless<th>Assignee</th><th>Due date</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+                <thead><tr><th>Task</th>@unless ($embedded)<th>For</th>@endunless<th>Working on it</th><th>Due date</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
                 <tbody>
                     @forelse ($tasks as $task)
                         <tr wire:key="task-{{ $task->id }}">
                             <td class="max-w-96">
                                 <p @class(['font-medium', 'text-stone-400 line-through' => $task->status === 'done', 'text-stone-900' => $task->status !== 'done'])>{{ $task->title }}</p>
+                                @if ($task->project && ! $inProject)
+                                    <p class="mt-0.5 text-xs">@if ($projectAccess)<a class="link" href="{{ route('projects.show', $task->project_id) }}">{{ $task->project->name }}</a>@else<span class="text-stone-600">{{ $task->project->name }}</span>@endif</p>
+                                @endif
                                 @if ($task->notes) <p class="line-clamp-2 text-xs text-stone-500">{{ $task->notes }}</p> @endif
                             </td>
                             @unless ($embedded)
@@ -55,14 +64,14 @@
                                     @else — @endif
                                 </td>
                             @endunless
-                            <td>{{ $task->assignee?->name ?? 'Unassigned' }}</td>
+                            <td class="max-w-56">{{ $task->assigneeNames() }}</td>
                             <td class="whitespace-nowrap">
                                 @if ($task->isOverdue()) <span class="badge-red-solid">Overdue · {{ fmt_date($task->due_date) }}</span>
                                 @elseif ($task->status !== 'done' && $task->due_date && days_until($task->due_date) === 0) <span class="badge-red-strong">Today</span>
                                 @else {{ fmt_date($task->due_date) }} @endif
                             </td>
                             <td>
-                                @if ($canManage || $task->assignee_id === auth()->id())
+                                @if ($canManage || $task->isAssignedTo(auth()->id()))
                                     <select class="input w-auto py-1 text-xs" aria-label="Status for {{ $task->title }}" wire:change="setStatus({{ $task->id }}, $event.target.value)">
                                         @foreach (\App\Models\Task::STATUSES as $key => $label) <option value="{{ $key }}" @selected($task->status === $key)>{{ $label }}</option> @endforeach
                                     </select>
@@ -102,16 +111,26 @@
                     @if ($form['for'] === 'lead')
                         <x-field label="Lead" name="form.lead_id" required class="md:col-span-2"><select class="input" wire:model="form.lead_id"><option value="">Select lead…</option>@foreach ($leads as $l) <option value="{{ $l->id }}">{{ $l->name }}</option> @endforeach</select></x-field>
                     @else
-                        <x-field label="Client" name="form.client_id" required class="md:col-span-2"><select class="input" wire:model="form.client_id"><option value="">Select client…</option>@foreach ($clients as $c) <option value="{{ $c->id }}">{{ $c->name }}</option> @endforeach</select></x-field>
+                        <x-field label="Client" name="form.client_id" required class="md:col-span-2"><select class="input" wire:model.live="form.client_id"><option value="">Select client…</option>@foreach ($clients as $c) <option value="{{ $c->id }}">{{ $c->name }}</option> @endforeach</select></x-field>
                     @endif
                 @endunless
                 <x-field label="Title" name="form.title" required class="md:col-span-2"><input class="input" type="text" wire:model="form.title" placeholder="e.g. Send revised scope, or Update homepage banner"></x-field>
-                <x-field label="Assignee" name="form.assignee_id">
-                    <select class="input" wire:model="form.assignee_id"><option value="">Unassigned</option>@foreach ($users as $u) <option value="{{ $u->id }}">{{ $u->name }}</option> @endforeach</select>
-                </x-field>
+                @if (! $inProject && $form['for'] === 'client')
+                    <x-field label="Project" name="form.project_id" class="md:col-span-2" :hint="$formProjects->isEmpty() ? ($form['client_id'] ? 'This client has no open project. Add one in Projects first, or leave this empty.' : 'Choose the client first.') : 'Optional. The task then shows on that project.'">
+                        <select class="input" wire:model="form.project_id" @disabled($formProjects->isEmpty())><option value="">Not part of a project</option>@foreach ($formProjects as $p) <option value="{{ $p->id }}">{{ $p->name }}</option> @endforeach</select>
+                    </x-field>
+                @endif
                 <x-field label="Due date" name="form.due_date"><input class="input" type="date" wire:model="form.due_date"></x-field>
                 <x-field label="Status" name="form.status">
                     <select class="input" wire:model="form.status">@foreach (\App\Models\Task::STATUSES as $key => $label) <option value="{{ $key }}">{{ $label }}</option> @endforeach</select>
+                </x-field>
+                <x-field label="Who is working on it" name="assignees" class="md:col-span-2" hint="Tick one or more people. Each of them can move the task along.">
+                    <div class="grid max-h-40 gap-x-4 gap-y-1.5 overflow-y-auto rounded-md border border-stone-200 p-3 sm:grid-cols-2 md:grid-cols-3">
+                        @foreach ($users as $u)
+                            <label class="flex items-center gap-2 text-sm" wire:key="assignee-{{ $u->id }}"><input type="checkbox" class="rounded border-stone-300" value="{{ $u->id }}" wire:model="assignees"> <span class="truncate">{{ $u->name }}</span></label>
+                        @endforeach
+                    </div>
+                    @error('assignees.*') <p class="field-error">{{ $message }}</p> @enderror
                 </x-field>
                 <x-field label="Notes" name="form.notes" class="md:col-span-2"><textarea class="input" rows="3" wire:model="form.notes"></textarea></x-field>
                 <div class="flex justify-end gap-2 md:col-span-2">

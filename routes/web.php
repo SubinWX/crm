@@ -63,6 +63,10 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
 
     Route::get('/equipment', Livewire\Equipment\Index::class)->name('equipment.index');
 
+    // Profile: everyone has their own; Super Admins, Admins and leave managers can open the people they look after.
+    Route::get('/profile', Livewire\Account\Profile::class)->name('profile');
+    Route::get('/profile/{user}', Livewire\Account\Profile::class)->name('profile.show');
+
     // Email Tools: signature and template builders, open to everyone on the team.
     Route::get('/email-tools/signature', Livewire\EmailTools\Signature::class)->name('email-tools.signature');
     Route::get('/email-tools/templates', Livewire\EmailTools\Template::class)->name('email-tools.templates');

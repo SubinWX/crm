@@ -119,7 +119,7 @@
                         <div class="flex items-center justify-between gap-3 border-b border-stone-100 px-4 py-2.5 text-sm last:border-b-0">
                             <div class="min-w-0">
                                 <p class="truncate text-stone-900">{{ $task->title }}</p>
-                                <p class="text-xs text-stone-500">{{ $task->assignee?->name ?? 'Unassigned' }}</p>
+                                <p class="text-xs text-stone-500">{{ $task->assigneeNames() }}</p>
                             </div>
                             <span @class(['text-xs whitespace-nowrap', 'font-semibold text-red-700' => $task->isOverdue(), 'text-stone-500' => ! $task->isOverdue()])>
                                 {{ $task->due_date ? ($task->isOverdue() ? 'Overdue · ' : '').fmt_date($task->due_date) : 'No due date' }}

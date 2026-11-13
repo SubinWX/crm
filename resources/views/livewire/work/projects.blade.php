@@ -17,13 +17,15 @@
         </div>
         <div class="table-wrap">
             <table class="table">
-                <thead><tr><th>Project / service</th>@unless ($clientId)<th>Client</th>@endunless<th>Owner</th><th>Status</th><th>Deadline</th><th>Hours</th><th>Next milestone</th><th>Quote</th><th class="text-right">Actions</th></tr></thead>
+                <thead><tr><th>Project / service</th>@unless ($clientId)<th>Client</th>@endunless<th>Owner</th><th>Working on it</th><th>Tasks</th><th>Status</th><th>Deadline</th><th>Hours</th><th>Next milestone</th><th>Quote</th><th class="text-right">Actions</th></tr></thead>
                 <tbody>
                     @forelse ($projects as $project)
                         <tr wire:key="project-{{ $project->id }}">
-                            <td class="max-w-80"><a href="{{ route('projects.show', $project) }}" class="font-medium text-stone-900 hover:underline">{{ $project->name }}</a><p class="text-xs text-stone-500">{{ \App\Models\Project::KINDS[$project->kind] ?? $project->kind }}@if ($project->members->isNotEmpty()) · {{ $project->members->count() }} on the team @endif</p></td>
+                            <td class="max-w-80"><a href="{{ route('projects.show', $project) }}" class="font-medium text-stone-900 hover:underline">{{ $project->name }}</a><p class="text-xs text-stone-500">{{ \App\Models\Project::KINDS[$project->kind] ?? $project->kind }}</p></td>
                             @unless ($clientId) <td><a class="link" href="{{ route('clients.show', ['client' => $project->client_id, 'tab' => 'projects']) }}">{{ $project->client->name }}</a></td> @endunless
                             <td>{{ $project->owner?->name ?? 'Unassigned' }}</td>
+                            <td class="max-w-56 text-sm">{{ $project->members->pluck('name')->implode(', ') ?: 'Anyone' }}</td>
+                            <td class="whitespace-nowrap"><a href="{{ route('projects.show', $project) }}#tasks" class="hover:underline"><span class="tabular-nums text-stone-900">{{ $project->open_tasks_count }}</span> <span class="text-xs text-stone-500">open of {{ $project->tasks_count }}</span></a></td>
                             <td><x-status :value="['planned' => 'sent', 'active' => 'active', 'on_hold' => 'on_hold', 'completed' => 'done', 'cancelled' => 'void'][$project->status] ?? 'void'" :label="\App\Models\Project::STATUSES[$project->status] ?? $project->status" /></td>
                             <td class="whitespace-nowrap">@if ($project->isOverdue()) <span class="badge-red-solid">Overdue · {{ fmt_date($project->deadline) }}</span> @else {{ fmt_date($project->deadline) }} @endif</td>
                             @php $logged = (int) $project->logged_minutes; $used = $project->progress($logged); @endphp
@@ -42,7 +44,7 @@
                             </td>
                         </tr>
                     @empty
-                        <x-empty :colspan="$clientId ? 8 : 9">No projects or services here.</x-empty>
+                        <x-empty :colspan="$clientId ? 10 : 11">No projects or services here.</x-empty>
                     @endforelse
                 </tbody>
             </table>
@@ -97,7 +99,7 @@
                 @endunless
                 <x-field label="Name" name="form.name" required><input class="input" type="text" wire:model="form.name" placeholder="e.g. Website redesign"></x-field>
                 <x-field label="Type" name="form.kind"><select class="input" wire:model="form.kind">@foreach (\App\Models\Project::KINDS as $key => $label) <option value="{{ $key }}">{{ $label }}</option> @endforeach</select></x-field>
-                <x-field label="Owner" name="form.owner_id"><select class="input" wire:model="form.owner_id"><option value="">Unassigned</option>@foreach ($users as $u) <option value="{{ $u->id }}">{{ $u->name }}</option> @endforeach</select></x-field>
+                <x-field label="Project owner" name="form.owner_id" hint="The person responsible for it."><select class="input" wire:model="form.owner_id"><option value="">Unassigned</option>@foreach ($users as $u) <option value="{{ $u->id }}">{{ $u->name }}</option> @endforeach</select></x-field>
                 <x-field label="Status" name="form.status"><select class="input" wire:model="form.status">@foreach (\App\Models\Project::STATUSES as $key => $label) <option value="{{ $key }}">{{ $label }}</option> @endforeach</select></x-field>
                 <x-field label="Description" name="form.description" class="md:col-span-2" hint="What the work covers. Bold, bullet lists and links are kept.">
                     <x-editor model="form.description" :value="$form['description']" min-height="7rem" label="Project description" />
@@ -110,7 +112,7 @@
                 </x-field>
                 <x-field label="Next milestone" name="form.next_milestone"><input class="input" type="text" wire:model="form.next_milestone" placeholder="e.g. Homepage design sign-off"></x-field>
                 <x-field label="Milestone date" name="form.next_milestone_date"><input class="input" type="date" wire:model="form.next_milestone_date"></x-field>
-                <x-field label="Team" name="members" class="md:col-span-2" hint="Who works on it. They can log time to it. Leave everyone unticked to let anyone log time.">
+                <x-field label="Who is working on it" name="members" class="md:col-span-2" hint="Tick one or more people. They can log time to it. Leave everyone unticked to let anyone log time.">
                     <div class="grid max-h-40 gap-x-4 gap-y-1.5 overflow-y-auto rounded-md border border-stone-200 p-3 sm:grid-cols-2 md:grid-cols-3">
                         @foreach ($users as $u)
                             <label class="flex items-center gap-2 text-sm" wire:key="member-{{ $u->id }}"><input type="checkbox" class="rounded border-stone-300" value="{{ $u->id }}" wire:model="members"> <span class="truncate">{{ $u->name }}</span></label>

@@ -193,6 +193,7 @@ class Projects extends Component
     public function render()
     {
         $projects = Project::query()->with(['client', 'owner', 'quote', 'members'])->withSum('timeEntries as logged_minutes', 'minutes')
+            ->withCount(['tasks', 'tasks as open_tasks_count' => fn ($q) => $q->open()])
             ->when($this->clientId, fn ($q) => $q->where('client_id', $this->clientId))
             ->when($this->status === 'open', fn ($q) => $q->open())
             ->when(array_key_exists($this->status, Project::STATUSES), fn ($q) => $q->where('status', $this->status))

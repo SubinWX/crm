@@ -4,6 +4,7 @@ namespace App\Livewire\Calendar;
 
 use App\Support\CalendarEvents;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -86,6 +87,7 @@ class Index extends Component
             'monthEvents' => $events->filter(fn ($e) => str_starts_with($e['date'], $this->month)),
             'allowed' => $allowed,
             'today' => today_local()->toDateString(),
+            'canLeave' => Gate::allows('workspace'),
         ]);
     }
 }

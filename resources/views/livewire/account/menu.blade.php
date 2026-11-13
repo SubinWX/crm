@@ -16,6 +16,9 @@
             </div>
         </div>
         <div class="p-2">
+            <a href="{{ route('profile') }}" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-50">
+                <x-icon name="users" class="size-5 text-stone-400" /> My Profile
+            </a>
             <button type="button" class="flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-stone-50"
                     @click="open = false" wire:click="open('password')">
                 <x-icon name="shield" class="size-5 text-stone-400" /> Change Password

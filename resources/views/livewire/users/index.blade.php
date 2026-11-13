@@ -105,6 +105,7 @@
                                 @if ($user->hasPendingInvitation() && $user->is_active)
                                     <button type="button" class="btn-ghost btn-sm" wire:click="resend({{ $user->id }})">Resend invite</button>
                                 @endif
+                                <a href="{{ $user->id === auth()->id() ? route('profile') : route('profile.show', $user) }}" class="btn-ghost btn-sm">Profile</a>
                                 <button type="button" class="btn-ghost btn-sm" wire:click="edit({{ $user->id }})">Edit</button>
                                 @if ($user->hasTwoFactor() && $user->id !== auth()->id())
                                     <button type="button" class="btn-ghost btn-sm" wire:click="resetTwoFactor({{ $user->id }})" wire:confirm="Reset two-step login for {{ $user->name }}? Use this when they have lost their phone. They sign in with the password only until they set it up again.">Reset 2-step</button>

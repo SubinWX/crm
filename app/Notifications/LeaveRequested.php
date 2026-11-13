@@ -22,7 +22,7 @@ class LeaveRequested extends CrmNotification implements ShouldQueue
 
     public function message(): string
     {
-        return ($this->leave->user?->name ?? 'Someone').' asked for '.(float) $this->leave->days.' '.((float) $this->leave->days === 1.0 ? 'day' : 'days').' of '.strtolower($this->leave->type?->name ?? 'leave').': '.$this->leave->period().'.';
+        return ($this->leave->user?->name ?? 'Someone').' asked for '.fmt_days($this->leave->days).' '.((float) $this->leave->days === 1.0 ? 'day' : 'days').' of '.strtolower($this->leave->type?->name ?? 'leave').': '.$this->leave->period().'.';
     }
 
     public function details(): array

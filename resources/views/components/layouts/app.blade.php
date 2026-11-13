@@ -19,13 +19,16 @@
                 ['clients.create', 'Add Client', 'plus', $user->can('clients.create'), 'clients.create'],
                 ['renewals.index', 'Hosting & Renewals', 'server', $user->can('workspace') && $user->can('clients.view'), 'renewals.*'],
             ]],
-            ['Work', 'check', [
+            ['Projects', 'check', [
                 ['projects.index', 'Projects & Services', 'document', $user->can('workspace') && $user->can('clients.view'), 'projects.*'],
                 ['tasks.index', 'Tasks & Follow-ups', 'check', $user->can('tasks.view'), 'tasks.*'],
+            ]],
+            ['Office', 'desktop', [
                 ['posters.index', 'Social Media Posters', 'photo', $user->can('posters.view'), 'posters.*'],
                 ['equipment.index', $user->isSuperAdmin() ? 'Equipment' : 'My Equipment', 'desktop', true, 'equipment.*'],
             ]],
             ['Team', 'clock', [
+                ['profile', 'My Profile', 'users', true, 'profile'],
                 ['timesheet', 'Timesheet', 'clock', $user->can('workspace'), 'timesheet'],
                 ['leave', 'Leave', 'calendar', $user->can('workspace'), 'leave'],
                 ['attendance', 'Attendance', 'check', $user->can('workspace'), 'attendance'],

@@ -69,9 +69,7 @@
                             @endforeach
                         </div>
                     </x-field>
-                    <x-field label="Paid leave days per person, per year" name="setup.leave_days_per_year" hint="Shown to each person as their allowance. Unpaid leave types are not counted against it.">
-                        <input class="input max-w-32" type="number" step="0.5" min="0" max="366" wire:model="setup.leave_days_per_year">
-                    </x-field>
+                    <p class="text-sm text-stone-600">Leave allowances (CL, EL, RH, ML…) are set in <a class="link" href="{{ route('leave', ['tab' => 'types']) }}">Leave → Leave types</a>.</p>
                     <div class="flex justify-end"><button type="submit" class="btn-primary">Save</button></div>
                 </div>
             </form>

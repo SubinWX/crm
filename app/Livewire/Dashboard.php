@@ -77,9 +77,9 @@ class Dashboard extends Component
             $data['monthExpenses'] = (float) Expense::whereBetween('expense_date', [$monthStart->toDateString(), $monthEnd->toDateString()])->sum('amount');
         }
 
-        $data['tasksThisMonth'] = Task::with(['client', 'lead', 'assignee'])->open()
+        $data['tasksThisMonth'] = Task::with(['client', 'lead', 'assignees'])->open()
             ->whereBetween('due_date', [$todayStr, $monthEnd->toDateString()])->orderBy('due_date')->limit(8)->get();
-        $data['tasksOverdue'] = Task::with(['client', 'lead', 'assignee'])->open()->where('due_date', '<', $todayStr)->orderBy('due_date')->limit(8)->get();
+        $data['tasksOverdue'] = Task::with(['client', 'lead', 'assignees'])->open()->where('due_date', '<', $todayStr)->orderBy('due_date')->limit(8)->get();
 
         $data['canSales'] = Gate::allows('sales.manage');
         if ($data['canSales']) {

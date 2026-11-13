@@ -92,7 +92,9 @@ class User extends Authenticatable
     }
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'alt_phone', 'date_of_birth', 'avatar_path', 'role', 'is_active', 'permissions',
+        'name', 'email', 'password', 'phone', 'alt_phone', 'date_of_birth', 'joined_on', 'avatar_path',
+        'gender', 'personal_email', 'address', 'city', 'state', 'pincode', 'nationality', 'blood_group',
+        'emergency_name', 'emergency_relation', 'emergency_phone', 'emergency_alt_phone', 'role', 'is_active', 'permissions',
         'invitation_token', 'invited_at', 'invited_by', 'last_login_at',
     ];
 
@@ -105,6 +107,7 @@ class User extends Authenticatable
             'invited_at' => 'datetime',
             'last_login_at' => 'datetime',
             'date_of_birth' => 'date',
+            'joined_on' => 'date',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'permissions' => 'array',
@@ -205,6 +208,31 @@ class User extends Authenticatable
     public function equipment(): HasMany
     {
         return $this->hasMany(Equipment::class);
+    }
+
+    /** Notes of meetings held with this person. */
+    public function meetingNotes(): HasMany
+    {
+        return $this->hasMany(MeetingNote::class);
+    }
+
+    public const GENDERS = ['male' => 'Male', 'female' => 'Female', 'other' => 'Other'];
+
+    public const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+    /**
+     * Whether $this person may open and edit $other's profile and write meeting notes about them:
+     * Super Admins for anyone, Admins for Staff, and leave/attendance managers for the working team.
+     */
+    public function managesProfileOf(User $other): bool
+    {
+        if (! $this->is_active || $this->is($other)) {
+            return false;
+        }
+
+        return $this->isSuperAdmin()
+            || ($this->isSubAdmin() && $other->role === self::ROLE_STAFF)
+            || ($this->hasPermission('team.manage') && $other->role === self::ROLE_STAFF);
     }
 
     /** Which sign-in page this account uses: "admin" (/login, Super Admins and Sub Admins) or "staff" (/staff). */

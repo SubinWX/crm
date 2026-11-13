@@ -206,6 +206,7 @@ php artisan crm:send-reminders --date=2027-01-03
 | Clients, hosting, client files | Yes | With `clients.view` / `clients.manage` | Add clients; view and edit only the clients they added (no archiving) |
 | Tasks, posters, Paid Server Clients | Yes | Yes (`tasks.manage` / `posters.manage` to change) | No |
 | Equipment | Manage everyone's | Own items, read-only | Own items, read-only |
+| Profile (details, rules & policies, meeting notes, devices) | Own and everyone's; writes the policies | Own; staff with `team.manage` also open other staff | Own and staff members' |
 | Invoices, payments, expenses, GST summary | Yes | With `finance.manage` | With `finance.manage` |
 | Leads and quotes | Yes | With `sales.manage` | With `sales.manage` |
 | Careers | Yes | With `careers.manage` | With `careers.manage` |
@@ -270,7 +271,8 @@ the database first, as with any upgrade: `mysqldump client_crm > backup.sql`.
   contact, notes, contact log, follow-ups, quotes and activity; if a client with the same email or
   name exists the lead is linked to it instead of creating a duplicate.
 - **Tasks & Follow-ups**: one list for work to do and things to chase, for clients and for
-  leads. Filter by "Due today or overdue" and "Assigned to me". Sales staff also see lead next
+  leads. A task can sit under a project and can have several people working on it;
+  each project page lists and adds its own tasks. Filter by "Due today or overdue" and "Assigned to me". Sales staff also see lead next
   actions and quote follow-up dates that are due at the top of the page.
 - **Client profile**: tabs for Contacts (primary, billing, approvals, daily), Contact Log
   (calls, emails, WhatsApp, meetings, notes), Quotes, Projects, Support, and one
@@ -369,7 +371,7 @@ The two public areas share one header and footer and each have their own banner.
   of the quick themes), the logo and the favicon. The whole app, both sign-in pages, the support
   portal and the PDFs follow them. Colours too light to read white text against are refused, and
   red stays reserved for overdue and urgent items.
-- **Sidebar**: main menus (Clients, Work, Sales, Support, Careers, Finance, Administration) open to show
+- **Sidebar**: main menus (Clients, Projects, Office, Team, Sales, Support, Careers, Finance, Administration) open to show
   their sub-menus. The menu holding the current page is always open; the rest remember their state
   in the browser.
 - **Help & Tutorial** (bottom of the sidebar, `/help`): a how-to guide for the team that shows
@@ -394,6 +396,12 @@ The two public areas share one header and footer and each have their own banner.
   Admin's areas. *Administration → Staff* (Super Admins and Admins) holds staff accounts and their access. An
   Admin can give staff the everyday areas, and a guarded area (sales, support, careers, finance, team) only
   when a Super Admin has given that area to the Admin. The "Admin" role is `sub_admin` in the code.
+- **Leave types and balances**: each type (CL, EL, RH, ML, LOP) has a code, days per year, how it is given
+  (all at once, half on 1 Jan and half on 1 Jul, or only by hand) and an optional higher figure after N years
+  from `users.joined_on`. `leave_allocations` holds one person's custom yearly figure and days added for a
+  year. `App\Support\LeaveBalance` works out allowance, used, pending and left. Managers use the Leave tabs
+  **Balances** and **Leave types**, and can add approved leave for someone. Quarter days (0.25) are loss of pay only.
+  The Calendar has an Apply button; staff see their own leave there, managers see everyone's.
 - **Who manages:** Super Admins, and Staff given `team.manage` (approve leave, edit attendance, see all
   timesheets, CSV exports). Admins are outside the team and do not see these pages.
 - Tables: `project_user`, `time_entries`, `leave_requests`, `attendance_records`, `holidays`.
