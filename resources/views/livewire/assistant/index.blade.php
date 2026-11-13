@@ -34,7 +34,7 @@
                         </div>
                     @else
                         <div class="flex gap-3" wire:key="a-{{ $m->id }}">
-                            <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-800"><x-icon name="star" /></span>
+                            <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-800"><x-icon name="bot" /></span>
                             <div class="rich min-w-0 max-w-[85%] text-sm text-stone-800">{!! \Illuminate\Support\Str::markdown($m->content, ['html_input' => 'escape', 'allow_unsafe_links' => false]) !!}</div>
                         </div>
                     @endif
@@ -45,7 +45,7 @@
                     </div>
                 @endforelse
                 @if ($waiting)
-                    <div class="flex items-center gap-3 text-sm text-stone-500"><span class="grid size-7 place-items-center rounded-full bg-brand-100 text-brand-800"><x-icon name="star" /></span> Thinking…</div>
+                    <div class="flex items-center gap-3 text-sm text-stone-500"><span class="grid size-7 place-items-center rounded-full bg-brand-100 text-brand-800"><x-icon name="bot" /></span> Thinking…</div>
                 @endif
                 @if ($error)
                     <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">{{ $error }}</p>

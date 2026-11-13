@@ -95,16 +95,6 @@
                 <x-icon name="calendar" /> Calendar
             </a>
 
-            <a href="{{ route('chat') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('chat')]) @if (request()->routeIs('chat')) aria-current="page" @endif>
-                <x-icon name="bell" /> <span class="flex-1">Chat</span>
-                {{-- Kept up to date by the chat notifier while the page is open. --}}
-                <span x-data="{ n: {{ request()->routeIs('chat') ? 0 : $unreadChat }} }" x-on:chat-unread.window="n = $event.detail.count" x-show="n > 0" x-text="n" x-cloak
-                      class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white" title="Unread messages"></span>
-            </a>
-            <a href="{{ route('assistant') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('assistant')]) @if (request()->routeIs('assistant')) aria-current="page" @endif>
-                <x-icon name="star" /> AI Assistant
-            </a>
-
             @foreach ($nav as [$group, $groupIcon, $items])
                 @php
                     $visible = collect($items)->filter(fn ($i) => $i[3]);
@@ -158,6 +148,8 @@
                     </a>
                 @endif
                 <span class="hidden text-xs text-stone-500 md:inline">{{ \Illuminate\Support\Carbon::now(crm_tz())->format('D, d M Y') }}</span>
+                {{-- AI assistant: the bot in the top bar. --}}
+                <a href="{{ route('assistant') }}" @class(['btn-ghost', 'bg-stone-100 text-brand-700' => request()->routeIs('assistant')]) title="AI Assistant" aria-label="AI Assistant"><x-icon name="bot" class="size-5" /></a>
                 <livewire:notifications.bell />
                 <livewire:account.menu />
             </div>
@@ -171,8 +163,17 @@
         </main>
     </div>
 
+    {{-- Chat: a round button in the bottom-right corner of every page, with the number of unread messages. Kept up to date by the chat notifier. --}}
+    @unless (request()->routeIs('chat'))
+        <a href="{{ route('chat') }}" class="fixed right-5 bottom-5 z-40 grid size-14 place-items-center rounded-full bg-brand-600 text-white shadow-lg transition hover:bg-brand-700 focus-visible:ring-4 focus-visible:ring-brand-200 focus-visible:outline-none" title="Chat" aria-label="Chat">
+            <x-icon name="chat" class="size-7" />
+            <span x-data="{ n: {{ (int) $unreadChat }} }" x-on:chat-unread.window="n = $event.detail.count" x-show="n > 0" x-text="n" x-cloak
+                  class="absolute -top-1 -right-1 min-w-5 rounded-full bg-red-600 px-1.5 text-center text-[11px] leading-5 font-bold text-white ring-2 ring-white" title="Unread messages"></span>
+        </a>
+    @endunless
+
     {{-- Toasts raised with $this->dispatch('toast', message: '...') --}}
-    <div x-data="{ toasts: [] }" class="pointer-events-none fixed right-4 bottom-4 z-50 space-y-2"
+    <div x-data="{ toasts: [] }" class="pointer-events-none fixed right-4 bottom-24 z-50 space-y-2"
          @toast.window="const t = { id: Date.now(), message: $event.detail.message, type: $event.detail.type || 'ok' }; toasts.push(t); setTimeout(() => toasts = toasts.filter(x => x.id !== t.id), 4000)">
         <template x-for="t in toasts" :key="t.id">
             <div class="pointer-events-auto rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-lg"
