@@ -10,6 +10,7 @@ use App\Models\JobApplication;
 use App\Models\Lead;
 use App\Models\LeaveRequest;
 use App\Models\Renewal;
+use App\Models\SoftwareSubscription;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
@@ -70,6 +71,10 @@ class PendingItems
         }
         if ($user->can('finance')) {
             $add(Invoice::query()->overdue()->count(), 'invoice overdue for payment', 'invoices overdue for payment', route('invoices.index'), 'cash', true);
+        }
+        if ($user->can('finance')) {
+            $add(SoftwareSubscription::where('status', 'active')->whereNotNull('renews_on')->where('renews_on', '<=', $soon)->count(),
+                'subscription renewing within 7 days', 'subscriptions renewing within 7 days', route('subscriptions'), 'receipt');
         }
         if ($workspace && $user->can('hosting.view')) {
             $due = Renewal::query()->remindable()->where('renewal_date', '<=', $soon)->count()

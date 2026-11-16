@@ -5,6 +5,8 @@
         @if ($canLog) <a href="{{ route('timesheet', ['project' => $project->id, 'add' => 1]) }}" class="btn-primary"><x-icon name="plus" /> Log time</a> @endif
     </x-page-header>
 
+    @can('finance') <livewire:work.bill-hours :project-id="$project->id" :key="'bill-'.$project->id" /> @endcan
+
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-stat label="Time logged" :value="\App\Models\TimeEntry::format($logged)" :hint="$billable !== $logged ? \App\Models\TimeEntry::format($billable).' billable' : 'All billable'" />
         <x-stat label="Estimate" :value="$project->estimated_hours !== null ? (float) $project->estimated_hours.'h' : 'Not set'" hint="Hours quoted or planned" />

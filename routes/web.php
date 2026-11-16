@@ -15,6 +15,7 @@ use App\Http\Controllers\SupportAttachmentController;
 use App\Livewire;
 use App\Models\Client;
 use App\Support\InvoicePdf;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 // Logo and favicon (public: shown on sign-in pages and the support portal)
@@ -69,6 +70,14 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
     Route::get('/profile/{user}', Livewire\Account\Profile::class)->name('profile.show');
 
     // Office: the company rules, meeting notes and documents; the timeline; the chat and the AI assistant. Open to everyone signed in.
+    // The guided tour was finished or closed: do not start it by itself again.
+    Route::post('/tour/seen', function () {
+        DB::table('users')->where('id', auth()->id())->whereNull('tour_seen_at')->update(['tour_seen_at' => now()]);
+
+        return response()->noContent();
+    })->name('tour.seen');
+    Route::get('/announcements', Livewire\Office\Announcements::class)->name('announcements');
+    Route::get('/knowledge-base', Livewire\Office\KnowledgeBase::class)->name('knowledge-base');
     Route::get('/policies', Livewire\Office\Policies::class)->name('policies');
     Route::get('/meeting-notes', Livewire\Office\MeetingNotes::class)->name('meeting-notes');
     Route::get('/documents', Livewire\Office\Documents::class)->name('documents');
@@ -98,6 +107,7 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
     // Shared team areas: everyone except Sub Admins (uploads need posters.manage)
     Route::middleware('can:workspace')->group(function () {
         Route::get('/tasks', Livewire\Tasks\Index::class)->name('tasks.index');
+        Route::get('/tasks/board', Livewire\Tasks\Board::class)->name('tasks.board');
         Route::get('/posters', Livewire\Posters\Index::class)->name('posters.index');
         Route::get('/posters/{poster}/image', [FileController::class, 'posterImage'])->name('posters.image');
         Route::get('/posters/{poster}/thumb', [FileController::class, 'posterThumb'])->name('posters.thumb');
@@ -106,6 +116,9 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
 
     // Finance: Super Admins only
     Route::middleware('can:finance')->group(function () {
+        Route::get('/subscriptions', Livewire\Finance\Subscriptions::class)->name('subscriptions');
+        Route::get('/reports', Livewire\Finance\Reports::class)->name('reports');
+        Route::get('/recurring-invoices', Livewire\Invoices\Recurring::class)->name('invoices.recurring');
         Route::get('/gst-summary', Livewire\Finance\GstSummary::class)->name('gst.summary');
         Route::get('/gst-summary/export', [ExportController::class, 'gst'])->name('gst.export');
         Route::get('/invoices', Livewire\Invoices\Index::class)->name('invoices.index');

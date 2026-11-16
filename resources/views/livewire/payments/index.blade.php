@@ -4,6 +4,8 @@
         <a href="{{ route('payments.create') }}" class="btn-primary"><x-icon name="plus" /> Record Payment</a>
     </x-page-header>
 
+    <p class="mb-4 rounded-md border border-stone-200 bg-white px-4 py-2.5 text-sm text-stone-600"><strong class="text-stone-900">A payment is money that actually reached you:</strong> how much, on what date, by which method, and who received it. What you asked the client to pay is in <a href="{{ route('invoices.index') }}" class="link">Invoices</a>. One invoice can be paid in several payments, and one payment can clear several invoices.</p>
+
     <div class="card">
         <div class="grid gap-3 border-b border-stone-200 p-4 md:grid-cols-3 xl:grid-cols-6">
             <input type="search" class="input md:col-span-3 xl:col-span-2" placeholder="Search client or reference…" wire:model.live.debounce.300ms="search" aria-label="Search payments">

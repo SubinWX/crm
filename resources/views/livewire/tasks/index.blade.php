@@ -1,6 +1,7 @@
 <div>
     @unless ($embedded)
         <x-page-header title="Tasks & Follow-ups" subtitle="Work to do and things to chase, for clients and leads, in one list.">
+            <a href="{{ route('tasks.board') }}" class="btn-secondary">Board view</a>
             @if ($canManage) <button type="button" class="btn-primary" wire:click="create"><x-icon name="plus" /> New Task</button> @endif
         </x-page-header>
 

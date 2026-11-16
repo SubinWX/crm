@@ -139,6 +139,7 @@ class User extends Authenticatable
             'two_factor_recovery_codes' => 'encrypted:array',
             'two_factor_confirmed_at' => 'datetime',
             'team_chat_read_at' => 'datetime',
+            'tour_seen_at' => 'datetime',
         ];
     }
 

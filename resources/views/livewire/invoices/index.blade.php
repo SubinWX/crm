@@ -1,9 +1,12 @@
 <div>
     <x-page-header title="Invoices" :subtitle="$summary['count'].' '.str('invoice')->plural($summary['count']).' · '.money($summary['outstanding']).' outstanding'.($summary['overdue'] ? ' · '.$summary['overdue'].' overdue' : '')">
         <a href="{{ route('invoices.export', array_filter($this->filters())) }}" class="btn-secondary" title="Every invoice matching the filters below, as one PDF"><x-icon name="download" /> Download PDF</a>
+        <a href="{{ route('invoices.recurring') }}" class="btn-secondary">Recurring</a>
         <a href="{{ route('payments.create') }}" class="btn-secondary">Record Payment</a>
         <a href="{{ route('invoices.create') }}" class="btn-primary"><x-icon name="plus" /> New Invoice</a>
     </x-page-header>
+
+    <p class="mb-4 rounded-md border border-stone-200 bg-white px-4 py-2.5 text-sm text-stone-600"><strong class="text-stone-900">An invoice is what you asked a client to pay:</strong> the bill, with its items, GST, total and due date. Money that actually arrives is recorded in <a href="{{ route('payments.index') }}" class="link">Payments</a>; an invoice turns Partly paid or Paid when payments are recorded against it.</p>
 
     <div class="card">
         <div class="grid gap-3 border-b border-stone-200 p-4 md:grid-cols-3 xl:grid-cols-6">

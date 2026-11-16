@@ -4,6 +4,7 @@
     </x-page-header>
 
     <x-pending-items />
+    <x-notice-board />
 
     <div class="mb-5 grid gap-4 sm:grid-cols-3">
         <x-stat label="Clients you added" :value="$total" :href="route('clients.index')" />

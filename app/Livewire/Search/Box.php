@@ -4,6 +4,7 @@ namespace App\Livewire\Search;
 
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\KbArticle;
 use App\Models\Lead;
 use App\Models\Project;
 use App\Models\Quote;
@@ -67,6 +68,9 @@ class Box extends Component
                 ->latest('id')->limit(self::PER_GROUP)->get()
                 ->map(fn ($t) => ['title' => $t->number.' · '.$t->subject, 'sub' => ucfirst(str_replace('_', ' ', (string) $t->status)), 'url' => route('support.tickets.show', $t)])->all();
         }
+        $groups['Knowledge base'] = KbArticle::where(fn ($q) => $q->where('title', 'like', $like)->orWhere('body', 'like', $like))
+            ->orderBy('title')->limit(self::PER_GROUP)->get()
+            ->map(fn ($a) => ['title' => $a->title, 'sub' => (string) $a->category, 'url' => route('knowledge-base', ['article' => $a->id])])->all();
         // People: whoever the signed-in person may open the profile of.
         $groups['People'] = $user->managedPeople()->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like))
             ->orderBy('name')->limit(self::PER_GROUP)->get()

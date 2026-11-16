@@ -20,6 +20,8 @@
         ['office', 'Documents, policies, meeting notes', true],
         ['search', 'Search and phone use', true],
         ['bulk', 'Bulk messages', $can('admin')],
+        ['extras', 'Task board, announcements, knowledge base', true],
+        ['finance-extras', 'Recurring invoices, billing hours, reports', $can('finance')],
         ['chat', 'Chat, AI Assistant, Timeline', true],
         ['equipment', 'Equipment', true],
         ['notifications', 'Notifications and reminders', $team],
@@ -33,7 +35,9 @@
 @endphp
 
 <x-layouts.app title="Help & Tutorial">
-    <x-page-header title="Help & Tutorial" :subtitle="'How to use '.app_name().', step by step. You are signed in as '.$user->role_label.', so this page shows the parts you can use.'" />
+    <x-page-header title="Help & Tutorial" :subtitle="'How to use '.app_name().', step by step. You are signed in as '.$user->role_label.', so this page shows the parts you can use.'">
+        <button type="button" class="btn-secondary" x-data @click="$dispatch('start-tour')"><x-icon name="star" /> Take the tour</button>
+    </x-page-header>
 
     <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <nav class="card h-fit p-2 text-sm lg:sticky lg:top-20" aria-label="Help contents">
@@ -345,6 +349,7 @@
                 <ul>
                     <li><strong>Needs your attention</strong> — the highlighted box at the top of the dashboard lists what is waiting for you: unread notifications and chat messages, your overdue and open tasks, leave waiting for approval, a reminder to check in, and (where you have access) open support tickets, lead follow-ups, new job applications, overdue invoices and renewals due within 7 days. Click a line to open it. When nothing is waiting it says you are all caught up.</li>
                     <li><strong>Profile pictures</strong> — after choosing a picture you can drag and zoom it inside a circle, then press <em>Use this crop</em>.</li>
+                    <li><strong>Guided tour</strong> — the first time someone signs in, a short tour points out the menu, search, notifications, chat and help, one step at a time. It can be closed at any step with ×, <em>Skip the tour</em> or the Esc key. Press <em>Take the tour</em> at the top of this page to see it again.</li>
                     <li><strong>Search</strong> — the box in the top bar finds clients, projects, tasks, invoices, leads, quotes, support tickets and people in one go. Type two or more letters, a phone number or an invoice number. Press <kbd>/</kbd> to jump to it. You only get results from the areas you can open.</li>
                     <li><strong>On a phone</strong> — open the same address in the phone’s browser. The menu is behind the ☰ button and search behind the magnifier. The dashboard shows three shortcuts: <em>Check in / out</em>, <em>Apply for leave</em> and <em>Timesheet</em>. Wide tables scroll sideways.</li>
                 </ul>
@@ -361,6 +366,27 @@
                         <li><strong>Stopping:</strong> every bulk email has a “Stop these emails” link. You can also tick <em>Do not send bulk messages</em> on a client’s edit page. Invoice and renewal reminders are not affected.</li>
                         <li><strong>Text messages (SMS)</strong> work once an SMS service is connected in <strong>Administration → Email, WhatsApp &amp; SMS</strong>. Any service with an HTTP API can be used. In India the sender ID and each template must be registered on a DLT portal, so enter the template’s ID and keep the wording exactly as registered.</li>
                         <li><strong>WhatsApp through Meta</strong> only delivers messages that use a template approved in WhatsApp Manager, so you enter that template’s name. Email and WhatsApp must first be connected in <strong>Administration → Email, WhatsApp &amp; SMS</strong>.</li>
+                    </ul>
+                </section>
+            @endif
+
+            <section id="extras" class="card p-5 text-sm leading-relaxed text-stone-700">
+                <h2>Task board, announcements and knowledge base</h2>
+                <ul>
+                    <li><strong>Projects → Task Board</strong> — your tasks in three columns: To do, In progress and Done. Drag a card to another column to change its status, or use the small list on the card. Switch between <em>My tasks</em> and <em>Everyone’s</em> at the top. Finished tasks stay in Done for two weeks.</li>
+                    <li><strong>Office → Announcements</strong> — notices from the company. Current ones show in the <em>Notice board</em> on the dashboard, together with birthdays and work anniversaries in the next 7 days.@if ($can('admin')) As a Super Admin you write them, pin one to the top, and set the last day it should show.@endif</li>
+                    <li><strong>Office → Knowledge Base</strong> — how-to articles and process documents. Anyone can add an article; the writer and Super Admins can change or delete it. Articles also come up in the search box.</li>
+                    @if ($can('finance'))<li><strong>Finance → Subscriptions</strong> — every tool the company pays for, with its cost, renewal date and who looks after it. The top row shows the total per month and per year. Press <em>Mark renewed</em> after paying and the date moves to the next period.</li>@endif
+                </ul>
+            </section>
+
+            @if ($can('finance'))
+                <section id="finance-extras" class="card p-5 text-sm leading-relaxed text-stone-700">
+                    <h2>Recurring invoices, billing hours and reports</h2>
+                    <ul>
+                        <li><strong>Finance → Recurring Invoices</strong> — for retainers and maintenance plans. Set the client, the lines, how often and the next date. On that date a <em>draft</em> invoice is raised for you to check and send; nothing is sent by itself. Write <code>{month}</code> and <code>{year}</code> in a line and each invoice shows its own month. You can pause one, set a last date, or press <em>Raise now</em>.</li>
+                        <li><strong>Bill hours</strong> (on a project page) — turns the billable hours logged on the project that have not been invoiced into a draft invoice at an hourly rate, as one line or one line per person. Those hours are then marked as billed so they are not charged twice; deleting or voiding the invoice frees them.</li>
+                        <li><strong>Finance → Reports</strong> — money received, money spent and profit for each month; income by client; what clients still owe, grouped by how late it is; and how many leads were won. Choose the financial year, the calendar year or the last 12 months at the top.</li>
                     </ul>
                 </section>
             @endif

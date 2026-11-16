@@ -4,6 +4,7 @@ namespace App\Livewire\Invoices;
 
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\RecurringInvoice;
 use App\Support\InvoiceFilters;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Title;
@@ -51,6 +52,14 @@ class Index extends Component
     public function filters(): array
     {
         return ['search' => $this->search, 'client' => $this->client, 'status' => $this->status, 'from' => $this->from, 'to' => $this->to];
+    }
+
+    /** Recurring invoices whose date has come are raised as drafts when the list is opened. */
+    public function mount(): void
+    {
+        if (($raised = RecurringInvoice::generateDue()) > 0) {
+            session()->flash('status', $raised.' recurring '.str('invoice')->plural($raised).' raised as '.($raised === 1 ? 'a draft' : 'drafts').'. Check and send '.($raised === 1 ? 'it' : 'them').'.');
+        }
     }
 
     public function render()

@@ -10,6 +10,7 @@
     </x-page-header>
 
     <x-pending-items />
+    <x-notice-board />
 
     {{-- Phone: the things people do from their phone, one tap away. --}}
     @can('workspace')

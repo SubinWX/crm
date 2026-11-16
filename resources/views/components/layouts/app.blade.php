@@ -22,11 +22,14 @@
             ]],
             ['Projects', 'check', [
                 ['projects.index', 'Projects & Services', 'document', $user->can('workspace') && $user->can('projects.view'), 'projects.*'],
-                ['tasks.index', 'Tasks & Follow-ups', 'check', $user->can('tasks.view'), 'tasks.*'],
+                ['tasks.index', 'Tasks & Follow-ups', 'check', $user->can('tasks.view'), 'tasks.index'],
+                ['tasks.board', 'Task Board', 'check', $user->can('tasks.view'), 'tasks.board'],
             ]],
             ['Office', 'desktop', [
                 ['posters.index', 'Social Media Posters', 'photo', $user->can('posters.view'), 'posters.*'],
                 ['equipment.index', $user->isSuperAdmin() ? 'Equipment' : 'My Equipment', 'desktop', true, 'equipment.*'],
+                ['announcements', 'Announcements', 'bell', true, 'announcements'],
+                ['knowledge-base', 'Knowledge Base', 'book', true, 'knowledge-base'],
                 ['documents', 'Documents', 'document', true, 'documents'],
                 ['policies', 'Rules & Policies', 'book', true, 'policies'],
                 ['meeting-notes', 'Meeting Notes', 'document', true, 'meeting-notes'],
@@ -59,9 +62,12 @@
                 ['email-tools.saved-templates', 'Saved Email Templates', 'document', true, 'email-tools.saved-templates'],
             ]],
             ['Finance', 'cash', [
-                ['invoices.index', 'Invoices', 'document', $user->can('finance'), 'invoices.*'],
+                ['reports', 'Reports', 'document', $user->can('finance'), 'reports'],
+                ['invoices.index', 'Invoices', 'document', $user->can('finance'), ['invoices.index', 'invoices.show', 'invoices.create', 'invoices.edit']],
+                ['invoices.recurring', 'Recurring Invoices', 'document', $user->can('finance'), 'invoices.recurring'],
                 ['payments.index', 'Payments', 'cash', $user->can('finance'), 'payments.*'],
                 ['expenses.index', 'Expenses', 'receipt', $user->can('finance'), 'expenses.*'],
+                ['subscriptions', 'Subscriptions', 'receipt', $user->can('finance'), 'subscriptions'],
                 ['gst.summary', 'GST Summary', 'document', $user->can('finance'), 'gst.*'],
             ]],
             ['Administration', 'shield', [
@@ -88,7 +94,7 @@
             <x-brand-mark />
             <span class="truncate text-sm font-semibold">{{ app_name() }}</span>
         </a>
-        <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-3" aria-label="Main">
+        <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-3" aria-label="Main" data-tour="menu">
             <a href="{{ route('dashboard') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('dashboard')]) @if (request()->routeIs('dashboard')) aria-current="page" @endif>
                 <x-icon name="home" /> Dashboard
             </a>
@@ -127,7 +133,7 @@
                 @endif
             @endforeach
         </nav>
-        <div class="shrink-0 border-t border-white/10 p-3">
+        <div class="shrink-0 border-t border-white/10 p-3" data-tour="help">
             <a href="{{ route('roadmap') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('roadmap')])><x-icon name="clock" /> Timeline &amp; Change log</a>
             <a href="{{ route('help') }}" @class(['nav-link', 'nav-link-active' => request()->routeIs('help')])><x-icon name="book" /> Help &amp; Tutorial</a>
         </div>
@@ -138,7 +144,7 @@
             <button type="button" class="btn-ghost lg:hidden" @click="nav = true" aria-label="Open navigation"><x-icon name="menu" class="size-5" /></button>
             <p class="truncate text-sm font-semibold text-stone-900">{{ $title ?? '' }}</p>
             <div class="ml-auto flex items-center gap-1 sm:gap-2">
-                <livewire:search.box />
+                <span data-tour="search"><livewire:search.box /></span>
                 {{-- A timer left running shows here on every page, counting up, so it is never forgotten. --}}
                 @php $runningTimer = auth()->user()->can('workspace') ? \App\Models\TimeEntry::running()->with('project')->where('user_id', auth()->id())->latest('started_at')->first() : null; @endphp
                 @if ($runningTimer)
@@ -151,9 +157,9 @@
                 @endif
                 <span class="hidden text-xs text-stone-500 md:inline">{{ \Illuminate\Support\Carbon::now(crm_tz())->format('D, d M Y') }}</span>
                 {{-- AI assistant: the bot in the top bar. --}}
-                <a href="{{ route('assistant') }}" @class(['btn-ghost', 'bg-stone-100 text-brand-700' => request()->routeIs('assistant')]) title="AI Assistant" aria-label="AI Assistant"><x-icon name="bot" class="size-5" /></a>
-                <livewire:notifications.bell />
-                <livewire:account.menu />
+                <a href="{{ route('assistant') }}" @class(['btn-ghost', 'bg-stone-100 text-brand-700' => request()->routeIs('assistant')]) title="AI Assistant" aria-label="AI Assistant" data-tour="assistant"><x-icon name="bot" class="size-5" /></a>
+                <span data-tour="bell"><livewire:notifications.bell /></span>
+                <span data-tour="account"><livewire:account.menu /></span>
             </div>
         </header>
 
@@ -167,7 +173,7 @@
 
     {{-- Chat: a round button in the bottom-right corner of every page, with the number of unread messages. Kept up to date by the chat notifier. --}}
     @unless (request()->routeIs('chat'))
-        <a href="{{ route('chat') }}" class="fixed right-5 bottom-5 z-40 grid size-14 place-items-center rounded-full bg-brand-600 text-white shadow-lg transition hover:bg-brand-700 focus-visible:ring-4 focus-visible:ring-brand-200 focus-visible:outline-none" title="Chat" aria-label="Chat">
+        <a href="{{ route('chat') }}" class="fixed right-5 bottom-5 z-40 grid size-14 place-items-center rounded-full bg-brand-600 text-white shadow-lg transition hover:bg-brand-700 focus-visible:ring-4 focus-visible:ring-brand-200 focus-visible:outline-none" title="Chat" aria-label="Chat" data-tour="chat">
             <x-icon name="chat" class="size-7" />
             <span x-data="{ n: {{ (int) $unreadChat }} }" x-on:chat-unread.window="n = $event.detail.count" x-show="n > 0" x-text="n" x-cloak
                   class="absolute -top-1 -right-1 min-w-5 rounded-full bg-red-600 px-1.5 text-center text-[11px] leading-5 font-bold text-white ring-2 ring-white" title="Unread messages"></span>
@@ -183,6 +189,7 @@
         </template>
     </div>
     {{-- New chat messages: a popup in the top-right corner of whichever page is open. Click it to open the conversation. --}}
+    <x-tour />
     <livewire:chat.notifier />
     <div x-data="{ popups: [] }" class="pointer-events-none fixed top-16 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] space-y-2" aria-live="polite"
          @chat-popup.window="const p = { id: Date.now() + Math.random(), ...$event.detail }; popups.push(p); setTimeout(() => popups = popups.filter(x => x.id !== p.id), 8000)">

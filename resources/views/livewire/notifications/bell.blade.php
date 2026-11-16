@@ -6,7 +6,7 @@
             <span class="absolute -top-0.5 -right-0.5 grid min-w-4.5 place-items-center rounded-full bg-red-600 px-1 text-[10px] leading-4.5 font-bold text-white">{{ $unread > 99 ? '99+' : $unread }}</span>
         @endif
     </button>
-    <div x-show="open" x-cloak x-transition.opacity class="card absolute right-0 z-30 mt-2 w-96 max-w-[calc(100vw-2rem)] shadow-xl">
+    <div x-show="open" x-cloak x-transition.opacity class="card fixed inset-x-4 top-16 z-30 shadow-xl sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-96">
         <div class="card-header">
             <h2 class="card-title">Notifications</h2>
             @if ($unread) <button type="button" class="link text-xs" wire:click="markAllRead">Mark all read</button> @endif

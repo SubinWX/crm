@@ -303,4 +303,28 @@ class OfficeTest extends TestCase
         $this->travelTo('2026-11-15 06:00:00');   // Sunday
         $this->assertArrayNotHasKey('You have not checked in today', $labels($this->meera));
     }
+
+    public function test_the_guided_tour_starts_for_a_new_person_until_they_finish_or_close_it(): void
+    {
+        // First visit to the dashboard: the tour is set to start, with steps for this person.
+        $this->actingAs($this->ravi)->get('/')->assertOk()->assertSee('if (true) setTimeout(() => start(), 600)', false)
+            ->assertSee('Welcome, Ravi')->assertSee('data-tour="menu"', false)->assertSee('data-tour="pending"', false)->assertSee('Check in for today');
+        // Not on other pages by itself.
+        $this->actingAs($this->ravi)->get('/documents')->assertSee('if (false) setTimeout(() => start(), 600)', false);
+
+        // Finishing or closing it is remembered.
+        $this->actingAs($this->ravi)->post('/tour/seen')->assertNoContent();
+        $seen = $this->ravi->fresh()->tour_seen_at;
+        $this->assertNotNull($seen);
+        $this->ravi->refresh();
+        $this->actingAs($this->ravi)->get('/')->assertSee('if (false) setTimeout(() => start(), 600)', false);
+        $this->assertNull($this->meera->fresh()->tour_seen_at);
+
+        // It can be replayed from Help & Tutorial, or with ?tour=1.
+        $this->actingAs($this->ravi)->get('/help')->assertOk()->assertSee('Take the tour');
+        $this->actingAs($this->ravi)->get('/documents?tour=1')->assertSee('if (true) setTimeout(() => start(), 600)', false);
+
+        // An Admin gets the steps that apply to them: no attendance, but adding a client.
+        $this->actingAs($this->subAdmin)->get('/')->assertSee('Add your first client')->assertDontSee('Check in for today');
+    }
 }

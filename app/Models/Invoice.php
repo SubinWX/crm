@@ -52,6 +52,9 @@ class Invoice extends Model
         });
 
         static::updated(function (Invoice $invoice) {
+            if ($invoice->wasChanged('status') && $invoice->status === 'void') {
+                TimeEntry::where('invoice_id', $invoice->id)->update(['invoice_id' => null]);
+            }
             if ($invoice->wasChanged(['planned_send_date', 'status'])) {
                 ReminderLog::query()
                     ->where('subject_type', 'invoice')->where('subject_id', $invoice->id)
@@ -74,6 +77,18 @@ class Invoice extends Model
     public function allocations(): HasMany
     {
         return $this->hasMany(PaymentAllocation::class);
+    }
+
+    /** The recurring invoice this one was raised by, if any. */
+    public function recurringInvoice(): BelongsTo
+    {
+        return $this->belongsTo(RecurringInvoice::class);
+    }
+
+    /** Tracked hours charged on this invoice. */
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
     }
 
     /** The accepted quote this invoice was raised from, if any. */
