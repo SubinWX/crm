@@ -42,4 +42,7 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', rtrim((string) env('APP_URL', 'http://localhost'), '/').'/support/auth/google/callback'),
     ],
 
+    // Whether a custom WhatsApp/SMS provider's host name is looked up to make sure it is a public address.
+    'outbound_dns_check' => env('OUTBOUND_DNS_CHECK', true),
+
 ];

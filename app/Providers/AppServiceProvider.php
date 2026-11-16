@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\EnsurePortalEmailIsVerified;
+use App\Http\Middleware\EnsurePortalUserIsActive;
+use App\Http\Middleware\EnsureTwoFactorSetUp;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\Client;
 use App\Models\ClientFile;
 use App\Models\Equipment;
@@ -34,7 +38,9 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -86,6 +92,21 @@ class AppServiceProvider extends ServiceProvider
             Setting::flush();
             MailSettings::apply();
         });
+
+        // On the live site everything is HTTPS: links are generated as https and the sign-in cookie is never sent over plain http.
+        if ($this->app->isProduction()) {
+            URL::forceScheme('https');
+            if (config('session.secure') === null) {
+                config(['session.secure' => true]);
+            }
+        }
+
+        // These checks must also run on every Livewire action, not only when a page is first opened:
+        // otherwise a deactivated person could keep working in a tab they already had open.
+        Livewire::addPersistentMiddleware([
+            EnsureUserIsActive::class, EnsurePortalUserIsActive::class,
+            EnsureTwoFactorSetUp::class, EnsurePortalEmailIsVerified::class,
+        ]);
 
         $this->registerGates();
         $this->registerAuthActivity();

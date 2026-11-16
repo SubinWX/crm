@@ -163,7 +163,8 @@ class Index extends Component
 
         // A page left open from before "Linked to" gained its extra options still sends the old client field.
         $linkedTo = $this->form['linked_to'] ?? (filled($this->form['client_id'] ?? null) ? 'client:'.$this->form['client_id'] : '');
-        $data = collect($this->form)->except(['linked_to', 'client_id'])->map(fn ($v) => $v === '' ? null : $v)->all();
+        // Only the fields on the form: the receipt's file path is set from the upload, never from the browser.
+        $data = collect($this->form)->only(['expense_date', 'amount', 'category_id', 'payee', 'payment_method_id', 'description', 'is_recurring', 'recurring_frequency'])->map(fn ($v) => $v === '' ? null : $v)->all();
         [$kind, $id] = array_pad(explode(':', (string) $linkedTo, 2), 2, '');
         $data['client_id'] = $kind === 'client' ? (int) $id : null;
         $data['link_id'] = $kind === 'link' ? (int) $id : null;

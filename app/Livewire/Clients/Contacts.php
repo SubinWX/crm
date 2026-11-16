@@ -65,7 +65,8 @@ class Contacts extends Component
             'form.notes' => ['nullable', 'string', 'max:500'],
         ], [], ['form.name' => 'name', 'form.email' => 'email', 'form.phone' => 'phone']);
 
-        $data = collect($this->form)->map(fn ($v) => $v === '' ? null : $v)->all();
+        // Only the fields on the form: a contact can never be moved to another client from here.
+        $data = collect($this->form)->only(['name', 'role', 'email', 'phone', 'is_primary', 'notes'])->map(fn ($v) => $v === '' ? null : $v)->all();
         $data['is_primary'] = (bool) $this->form['is_primary'];
 
         $contact = $this->editingId ? $this->client->contacts()->findOrFail($this->editingId) : new ClientContact(['client_id' => $this->client->id]);

@@ -203,7 +203,7 @@ class Attendance extends Component
             'today' => $today,
             'todayRecord' => AttendanceRecord::where('user_id', $me->id)->whereDate('date', $today)->first(),
             'holidays' => $this->tab === 'setup' ? Holiday::where('date', '>=', today_local()->startOfYear()->toDateString())->orderBy('date')->get() : collect(),
-            'cellPerson' => $this->cellUser ? User::find($this->cellUser) : null,
+            'cellPerson' => $this->cellUser && Gate::allows('team.manage') ? User::team()->find($this->cellUser) : null,
         ]);
     }
 }

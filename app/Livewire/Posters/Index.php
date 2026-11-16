@@ -103,7 +103,8 @@ class Index extends Component
             'image' => [$this->editingId ? 'nullable' : 'required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240', 'dimensions:max_width=8000,max_height=8000'],
         ], [], ['form.title' => 'title', 'form.platform' => 'platform', 'form.client_id' => 'client']);
 
-        $data = collect($this->form)->map(fn ($v) => $v === '' ? null : $v)->all();
+        // Only the fields on the form: the stored file paths are set from the upload, never from the browser.
+        $data = collect($this->form)->only(['title', 'platform', 'client_id', 'campaign', 'caption', 'tags'])->map(fn ($v) => $v === '' ? null : $v)->all();
         $data['tags'] = $data['tags'] ? collect(explode(',', $data['tags']))->map(fn ($t) => trim($t, " #\t"))->filter()->unique()->implode(', ') : null;
 
         $poster = $this->editingId ? Poster::findOrFail($this->editingId) : new Poster(['uploaded_by' => auth()->id()]);

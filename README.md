@@ -465,6 +465,32 @@ Contracts, invoice copies, expense receipts, poster images, client logos and hea
 permission-checked routes. Nothing is placed under `public/`. Back up this folder together
 with the database.
 
+## Going live: security checklist
+
+Set these in the server's `.env` before the CRM is reachable from the internet:
+
+| Setting | Value | Why |
+|---|---|---|
+| `APP_ENV` | `production` | Turns on HTTPS-only links, the secure sign-in cookie and the HSTS header |
+| `APP_DEBUG` | `false` | Error pages must not show code, settings or database details |
+| `APP_URL` | `https://your-domain` | Used in emails, PDFs and signed links |
+| `APP_KEY` | a fresh `php artisan key:generate` | Encrypts saved API keys and sign-in cookies; never reuse the development one |
+| `LOG_LEVEL` | `warning` | Keeps personal data out of the logs |
+| `SESSION_ENCRYPT` | `true` | Session contents are unreadable in the database |
+
+Also:
+
+- Serve the site over HTTPS only, with the web server pointed at the `public/` folder (never the project root).
+- If the server sits behind a load balancer or CDN, configure trusted proxies so HTTPS and visitor IP addresses are detected correctly (sign-in rate limits depend on the IP).
+- Give the database its own user with a strong password; do not use `root`.
+- Back up the database and `storage/app` daily, and keep at least one copy off the server.
+- Run the queue worker and the scheduler (see above) under a process manager.
+- Require two-step login for Super Admins (Administration → Admins).
+- Keep libraries current: `composer audit` and `npm audit` should report nothing.
+- The repository is public: never commit `.env`, database dumps or uploaded files.
+
+Every page sends `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy` headers (`app/Http/Middleware/SecurityHeaders.php`).
+
 ## Tests
 
 ```bash

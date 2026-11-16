@@ -89,6 +89,12 @@ class User extends Authenticatable
     public const GUARDED_PERMISSIONS = ['sales.manage', 'support.manage', 'careers.manage', 'finance.manage', 'team.manage'];
 
     /**
+     * Areas only a Super Admin can switch on for staff. An Admin sees just the clients they added, so they must not
+     * be able to hand out (or, through a staff account, obtain) access to every client, project and hosting record.
+     */
+    public const SUPER_ADMIN_ONLY_PERMISSIONS = ['clients.view', 'clients.manage', 'projects.view', 'projects.manage', 'hosting.view', 'hosting.manage'];
+
+    /**
      * The access options $this person may tick for someone with the given role.
      * Super Admins may tick anything that exists for the role. Admins manage Staff only, and cannot
      * hand out a guarded area they have not been given themselves.
@@ -102,7 +108,8 @@ class User extends Authenticatable
             return [];
         }
 
-        return array_values(array_filter(self::grantable($role), fn ($permission) => ! in_array($permission, self::GUARDED_PERMISSIONS, true) || $this->hasPermission($permission)));
+        return array_values(array_filter(self::grantable($role), fn ($permission) => ! in_array($permission, self::SUPER_ADMIN_ONLY_PERMISSIONS, true)
+            && (! in_array($permission, self::GUARDED_PERMISSIONS, true) || $this->hasPermission($permission))));
     }
 
     /** The options that can be ticked for a role. Super Admins have everything, so nothing is ticked for them. */

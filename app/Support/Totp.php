@@ -56,6 +56,23 @@ class Totp
         return false;
     }
 
+    /** The 30-second step a correct code belongs to, or null when the code is wrong. Lets the caller refuse a code that was already used. */
+    public static function matchedStep(string $secret, ?string $code, ?int $timestamp = null): ?int
+    {
+        $code = preg_replace('/\s+/', '', (string) $code);
+        if (! preg_match('/^\d{6}$/', $code)) {
+            return null;
+        }
+        $timestamp ??= now()->getTimestamp();
+        foreach ([-1, 0, 1] as $step) {
+            if (hash_equals(self::codeAt($secret, $timestamp + $step * self::PERIOD), $code)) {
+                return intdiv($timestamp, self::PERIOD) + $step;
+            }
+        }
+
+        return null;
+    }
+
     /** What the QR code contains: the account name, the secret and who issued it. */
     public static function uri(string $secret, string $account, string $issuer): string
     {

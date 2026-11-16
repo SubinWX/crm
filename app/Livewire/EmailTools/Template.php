@@ -124,6 +124,10 @@ class Template extends Component
 
         $data = ['name' => trim($this->name), 'data' => array_merge($this->form, ['body' => (string) RichText::clean($this->form['body'])])];
         $existing = ! $asNew && $this->loadedId ? EmailTemplate::find($this->loadedId) : null;
+        // Someone else's template is never overwritten: the changes are saved as a copy of your own instead.
+        if ($existing && ! auth()->user()->isSuperAdmin() && (int) $existing->created_by !== auth()->id()) {
+            $existing = null;
+        }
         $template = $existing ? tap($existing)->update($data) : EmailTemplate::create($data + ['created_by' => auth()->id()]);
         $this->loadedId = $template->id;
 

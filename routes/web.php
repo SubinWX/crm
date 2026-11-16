@@ -236,7 +236,7 @@ Route::prefix('support')->name('portal.')->group(function () {
         Route::get('/login', [PortalAuth::class, 'showLogin'])->name('login');
         Route::post('/login', [PortalAuth::class, 'login'])->middleware('throttle:20,1');
         Route::get('/register', [PortalAuth::class, 'showRegister'])->name('register');
-        Route::post('/register', [PortalAuth::class, 'register'])->middleware('throttle:10,1');
+        Route::post('/register', [PortalAuth::class, 'register'])->middleware('throttle:5,10');
         Route::get('/forgot-password', [PortalAuth::class, 'showForgot'])->name('password.request');
         Route::post('/forgot-password', [PortalAuth::class, 'sendReset'])->middleware('throttle:6,1')->name('password.email');
         Route::get('/reset-password/{token}', [PortalAuth::class, 'showReset'])->name('password.reset');

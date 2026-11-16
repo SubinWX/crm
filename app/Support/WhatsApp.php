@@ -189,7 +189,10 @@ class WhatsApp
             if (! is_array($payload)) {
                 return ['ok' => false, 'id' => null, 'error' => 'The request body in the WhatsApp settings is not valid JSON.'];
             }
-            $response = Http::withHeaders([self::get('whatsapp_custom_auth_header') => $token])->acceptJson()->timeout(20)
+            if (! OutboundUrl::isPublic(setting('whatsapp_custom_url'))) {
+                return ['ok' => false, 'id' => null, 'error' => 'The WhatsApp API address must be a public https address.'];
+            }
+            $response = Http::withHeaders([self::get('whatsapp_custom_auth_header') => $token])->acceptJson()->timeout(20)->withOptions(['allow_redirects' => false])
                 ->post(setting('whatsapp_custom_url'), $payload);
 
             return $response->successful()

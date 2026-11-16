@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PortalUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -51,7 +52,13 @@ class GoogleController extends Controller
         }
 
         if ($user) {
-            $user->forceFill(['google_id' => $google->getId(), 'email_verified_at' => $user->email_verified_at ?? now()])->save();
+            $attributes = ['google_id' => $google->getId(), 'email_verified_at' => $user->email_verified_at ?? now()];
+            // An account whose email was never verified may have been created by someone else with this address.
+            // Google has now proved who owns it, so any password set before is thrown away.
+            if ($user->email_verified_at === null) {
+                $attributes += ['password' => Hash::make(Str::random(48)), 'remember_token' => Str::random(60)];
+            }
+            $user->forceFill($attributes)->save();
         } else {
             $user = PortalUser::create([
                 'name' => $google->getName() ?: Str::before($email, '@'),

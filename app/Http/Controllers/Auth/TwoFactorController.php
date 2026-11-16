@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Totp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -40,17 +41,25 @@ class TwoFactorController extends Controller
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             throw ValidationException::withMessages(['code' => 'Too many attempts. Try again in '.RateLimiter::availableIn($throttleKey).' seconds.']);
         }
+        // A second limit per account, whatever address the attempts come from.
+        $accountKey = 'two-factor-account|'.$user->id;
+        if (RateLimiter::tooManyAttempts($accountKey, 10)) {
+            throw ValidationException::withMessages(['code' => 'Too many wrong codes for this account. Try again in '.ceil(RateLimiter::availableIn($accountKey) / 60).' minutes.']);
+        }
 
         $usedRecovery = false;
         if (filled($data['recovery_code'] ?? null)) {
             $usedRecovery = $user->useRecoveryCode($data['recovery_code']);
             $valid = $usedRecovery;
         } else {
-            $valid = Totp::verify($user->two_factor_secret, $data['code'] ?? '');
+            // Each code works once: a code someone saw being typed cannot be used again.
+            $step = Totp::matchedStep($user->two_factor_secret, $data['code'] ?? '');
+            $valid = $step !== null && Cache::add('two-factor-used|'.$user->id.'|'.$step, true, 180);
         }
 
         if (! $valid) {
             RateLimiter::hit($throttleKey, 60);
+            RateLimiter::hit($accountKey, 900);
             activity('login_failed', "Wrong two-step code for {$user->email}", $user, [], $user->id);
             throw ValidationException::withMessages(filled($data['recovery_code'] ?? null)
                 ? ['recovery_code' => 'That recovery code is not valid, or has already been used.']
@@ -58,6 +67,7 @@ class TwoFactorController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+        RateLimiter::clear($accountKey);
         $remember = (bool) $request->session()->pull('two_factor.remember', false);
         $area = $request->session()->pull('two_factor.area', 'admin');
         $request->session()->forget('two_factor');

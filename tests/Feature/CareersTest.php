@@ -130,9 +130,10 @@ class CareersTest extends TestCase
         $this->assertStringContainsString('Meera Nair applied for Laravel Developer', (new JobApplicationReceived($application))->message());
         $this->assertStringContainsString('We received your application', (new JobApplicationConfirmation($application))->toMail(new AnonymousNotifiable)->subject);
 
-        // The same email cannot apply twice for the same job, but can for another or as a general application.
+        // The same email cannot apply twice for the same job (and the page does not reveal that it tried), but can for another or as a general application.
         Livewire::test(Apply::class, ['slug' => $vacancy->slug])->set($this->details())
-            ->set('resume', UploadedFile::fake()->create('cv.pdf', 100, 'application/pdf'))->call('submit')->assertHasErrors('form.email');
+            ->set('resume', UploadedFile::fake()->create('cv.pdf', 100, 'application/pdf'))->call('submit')->assertHasNoErrors()->assertSet('submitted', true);
+        $this->assertSame(1, JobApplication::count());   // thanked as usual, but nothing new is stored
         Livewire::test(Apply::class)->set($this->details())
             ->set('resume', UploadedFile::fake()->create('cv.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'))
             ->call('submit')->assertHasNoErrors()->assertSet('submitted', true);

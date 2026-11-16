@@ -150,7 +150,8 @@ class Form extends Component
     {
         $this->validate();
 
-        $data = collect($this->form)->map(fn ($v) => $v === '' ? null : $v)->all();
+        // Only the fields that are on the form. Anything else the browser adds (a file path, who created it, the archive date) is dropped.
+        $data = collect($this->form)->only(array_keys(get_class_vars(static::class)['form']))->map(fn ($v) => $v === '' ? null : $v)->all();
         $creating = $this->client === null;
 
         $client = DB::transaction(function () use ($data, $creating) {

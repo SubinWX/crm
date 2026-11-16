@@ -5,6 +5,7 @@ namespace App\Livewire\Users;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\UserInvited;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -159,6 +160,11 @@ class Index extends Component
 
                 return;
             }
+            if (! $this->mayChangeSignIn($user) && ($password !== '' || strtolower((string) $data['email']) !== strtolower((string) $user->email))) {
+                $this->addError($password !== '' ? 'form.password' : 'form.email', 'Only a Super Admin can change the email or password of this person, because they have access you have not been given.');
+
+                return;
+            }
             $user->update($data);
             if ($password !== '') {
                 // Their other sessions end automatically because the stored password changed.
@@ -204,11 +210,24 @@ class Index extends Component
         ];
     }
 
+    /**
+     * Whether the signed-in person may change this account's sign-in details (email, password, two-step login).
+     * Super Admins always may. An Admin may not for a staff member who holds an area the Admin was never given
+     * (for example finance): changing their password would let the Admin sign in as them and use that area.
+     */
+    protected function mayChangeSignIn(User $user): bool
+    {
+        $me = auth()->user();
+
+        return $me->isSuperAdmin() || array_diff($user->permissions ?? [], $me->assignablePermissions($user->role)) === [];
+    }
+
     /** For someone who lost their phone: clears two-step login so they can sign in with the password and set it up again. */
     public function resetTwoFactor(int $id): void
     {
         $user = $this->target($id);
         abort_if($user->id === auth()->id(), 422);
+        abort_unless($this->mayChangeSignIn($user), 403);
         $user->clearTwoFactor();
         activity('two_factor', "Two-step login reset for {$user->email} by a Super Admin", $user);
         $this->dispatch('toast', message: "Two-step login reset for {$user->name}.");
@@ -238,6 +257,11 @@ class Index extends Component
         }
         // Deactivation never deletes: payments, tasks and logs keep pointing at this user.
         $user->update(['is_active' => ! $user->is_active]);
+        if (! $user->is_active) {
+            // Sign them out everywhere at once.
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+            $user->forceFill(['remember_token' => null])->saveQuietly();
+        }
         $this->dispatch('toast', message: $user->name.($user->is_active ? ' reactivated.' : ' deactivated. Their history is kept.'));
     }
 

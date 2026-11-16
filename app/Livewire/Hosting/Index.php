@@ -269,7 +269,7 @@ class Index extends Component
             'records' => $query->paginate($this->clientId ? 50 : 25),
             'counts' => $counts,
             'expanded' => $this->expandedId ? HostingRecord::with(['renewals.recorder', 'serverType'])->find($this->expandedId) : null,
-            'renewing' => $this->renewingId ? HostingRecord::with('client')->find($this->renewingId) : null,
+            'renewing' => $this->renewingId ? HostingRecord::with('client')->when($this->clientId, fn ($q) => $q->where('client_id', $this->clientId))->find($this->renewingId) : null,
             'serverTypes' => Lookup::options('server_type', $this->form['server_type_id'] ?? null),
             'providers' => Lookup::options('server_provider', $this->form['server_provider_id'] ?? null),
             'clients' => $this->showForm && ! $this->clientId ? Client::notArchived()->orderBy('name')->get(['id', 'name']) : collect(),

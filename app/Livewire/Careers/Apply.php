@@ -29,6 +29,12 @@ class Apply extends Component
     /** Applications one address may send per hour. */
     public const HOURLY_LIMIT = 5;
 
+    /** What an applicant fills in. Nothing else from the browser reaches the application record. */
+    public const FIELDS = ['name', 'email', 'phone', 'location', 'experience_years', 'current_company', 'current_salary', 'expected_salary', 'notice_period', 'portfolio_url', 'linkedin_url', 'cover_letter'];
+
+    /** A person's name: letters, spaces, dots, apostrophes and hyphens. Keeps links and markup out of the emails that greet them by name. */
+    public const NAME_RULE = "regex:/^[\\pL\\pM][\\pL\\pM .'\\-]{1,119}$/u";
+
     #[Locked]
     public ?int $vacancyId = null;
 
@@ -74,7 +80,7 @@ class Apply extends Component
         }
 
         $this->validate([
-            'form.name' => ['required', 'string', 'min:2', 'max:120'],
+            'form.name' => ['required', 'string', 'min:2', 'max:120', self::NAME_RULE],
             'form.email' => ['required', 'email', 'max:190'],
             'form.phone' => ['required', 'string', 'min:7', 'max:25', 'regex:/^[0-9+()\-\s]+$/'],
             'form.location' => ['nullable', 'string', 'max:150'],
@@ -89,6 +95,7 @@ class Apply extends Component
             'resume' => ['required', ...JobApplication::RESUME_RULES],
             'consent' => ['accepted'],
         ], [
+            'form.name.regex' => 'Enter your name using letters only.',
             'form.phone.regex' => 'Enter a phone number using digits only (a leading + is fine).',
             'resume.required' => 'Please attach your resume.',
             'resume.mimes' => 'The resume must be a PDF or Word file (.pdf, .doc, .docx).',
@@ -117,14 +124,16 @@ class Apply extends Component
             ->when($vacancy, fn ($q) => $q->where('job_vacancy_id', $vacancy->id), fn ($q) => $q->whereNull('job_vacancy_id'))
             ->where('created_at', '>=', now()->subDays(30))->exists();
         if ($already) {
-            $this->addError('form.email', 'We already have a recent application from this email address for this position.');
+            // Same thank-you as a new application: the page must not reveal whether this person has applied before.
+            $this->finish();
 
             return;
         }
 
         RateLimiter::hit($key, 3600);
 
-        $data = collect($this->form)->map(fn ($v) => trim((string) $v) === '' ? null : trim((string) $v))->all();
+        // Only the fields that are on the form. Anything else sent by the browser (a status, a rating, internal notes) is dropped.
+        $data = collect($this->form)->only(self::FIELDS)->map(fn ($v) => trim((string) $v) === '' ? null : trim((string) $v))->all();
         $application = JobApplication::create(array_merge($data, [
             'email' => $email,
             'job_vacancy_id' => $vacancy?->id,

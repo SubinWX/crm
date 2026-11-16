@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\MessageLog;
 use App\Models\Setting;
 use App\Support\MailSettings;
+use App\Support\OutboundUrl;
 use App\Support\Sms;
 use App\Support\WhatsApp;
 use Illuminate\Support\Facades\Gate;
@@ -141,9 +142,7 @@ class Messaging extends Component
             'wa.whatsapp_template_language' => ['required', 'regex:/^[a-z]{2}(_[A-Z]{2})?$/'],
             // Must be a public https address: tokens are never sent over plain http or to this server's own network.
             'wa.whatsapp_custom_url' => [Rule::requiredIf($on && ! $meta), 'nullable', 'url:https', 'max:500', function ($attribute, $value, $fail) {
-                $host = strtolower((string) parse_url((string) $value, PHP_URL_HOST));
-                if ($host === 'localhost' || str_ends_with($host, '.local') || str_ends_with($host, '.internal')
-                    || (filter_var($host, FILTER_VALIDATE_IP) && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE))) {
+                if (filled($value) && ! OutboundUrl::isPublic((string) $value)) {
                     $fail('Enter the public address of your WhatsApp provider.');
                 }
             }],
@@ -213,9 +212,7 @@ class Messaging extends Component
     protected function publicAddress(): \Closure
     {
         return function ($attribute, $value, $fail) {
-            $host = strtolower((string) parse_url((string) $value, PHP_URL_HOST));
-            if (! str_starts_with(strtolower((string) $value), 'https://') || $host === '' || $host === 'localhost' || str_ends_with($host, '.local') || str_ends_with($host, '.internal')
-                || (filter_var($host, FILTER_VALIDATE_IP) && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE))) {
+            if (filled($value) && ! OutboundUrl::isPublic(strtr((string) $value, array_fill_keys(Sms::PLACEHOLDERS, 'x')))) {
                 $fail('Enter the public https address of your SMS provider.');
             }
         };

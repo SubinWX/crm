@@ -8,6 +8,7 @@ use App\Support\TicketDesk;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -55,6 +56,15 @@ class TicketShow extends Component
             'files' => ['array', 'max:'.TicketDesk::MAX_ATTACHMENTS],
             'files.*' => TicketDesk::ATTACHMENT_RULES,
         ], [], ['files.*' => 'attachment']);
+
+        // Stop one account flooding the desk with replies and attachments.
+        $key = 'portal-reply|'.Auth::guard('portal')->id();
+        if (RateLimiter::tooManyAttempts($key, 30)) {
+            $this->addError('reply', 'You have sent many replies in a short time. Please wait a little before sending another.');
+
+            return;
+        }
+        RateLimiter::hit($key, 3600);
 
         DB::transaction(function () use ($ticket) {
             $message = $ticket->messages()->create(['portal_user_id' => Auth::guard('portal')->id(), 'body' => trim($this->reply)]);

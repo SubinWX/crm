@@ -31,7 +31,8 @@ class StaffManagementTest extends TestCase
 
         // What each may hand to staff: everyday areas always; a guarded area only if they hold it themselves.
         $this->assertSame(array_keys(User::STAFF_PERMISSIONS), $super->assignablePermissions('staff'));
-        $everyday = ['clients.view', 'clients.manage', 'projects.view', 'projects.manage', 'hosting.view', 'hosting.manage', 'tasks.manage', 'posters.manage'];
+        // Clients, projects and hosting are for Super Admins to give: an Admin only sees the clients they added.
+        $everyday = ['tasks.manage', 'posters.manage'];
         $this->assertSame([...$everyday, 'sales.manage'], $admin->assignablePermissions('staff'));
         $this->assertSame($everyday, $plainAdmin->assignablePermissions('staff'));
         $this->assertSame([], $admin->assignablePermissions('sub_admin'));
@@ -52,7 +53,8 @@ class StaffManagementTest extends TestCase
             ->set('form.name', 'New Hire')->set('form.email', 'hire@example.com')->set('form.password', 'secret-pass-1')
             ->set('form.permissions', ['clients.view', 'sales.manage', 'finance.manage', 'team.manage'])->call('save')->assertHasNoErrors();
         $hire = User::where('email', 'hire@example.com')->firstOrFail();
-        $this->assertSame(['staff', ['clients.view', 'sales.manage']], [$hire->role, $hire->permissions]);
+        // Client access is not an Admin's to give, so it is dropped along with the areas the Admin does not hold.
+        $this->assertSame(['staff', ['sales.manage']], [$hire->role, $hire->permissions]);
         // The role cannot be pushed to Admin or Super Admin from the Staff page.
         Livewire::actingAs($admin)->test(UsersIndex::class, ['scope' => 'staff'])->call('create')->set('form.name', 'Sneaky')->set('form.email', 'sneaky@example.com')
             ->set('form.role', 'super_admin')->call('save')->assertHasErrors('form.role');
@@ -61,7 +63,8 @@ class StaffManagementTest extends TestCase
         // Editing staff: the Admin changes what is theirs to change; access a Super Admin gave (Finance) is left as it was.
         Livewire::actingAs($admin)->test(UsersIndex::class, ['scope' => 'staff'])->call('edit', $staff->id)->assertSet('form.permissions', ['clients.view', 'finance.manage'])
             ->set('form.permissions', ['tasks.manage'])->call('save')->assertHasNoErrors();
-        $this->assertSame(['tasks.manage', 'finance.manage'], $staff->fresh()->permissions);
+        // Client access and Finance were given by a Super Admin, so the Admin can neither add nor remove them.
+        $this->assertSame(['clients.view', 'tasks.manage', 'finance.manage'], $staff->fresh()->permissions);
         // An Admin can deactivate and reactivate staff, and set a password.
         Livewire::actingAs($admin)->test(UsersIndex::class, ['scope' => 'staff'])->call('toggleActive', $staff->id);
         $this->assertFalse($staff->fresh()->is_active);

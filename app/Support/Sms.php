@@ -69,6 +69,9 @@ class Sms
         if (self::missing() !== []) {
             return ['ok' => false, 'id' => null, 'error' => 'SMS is not fully set up: '.implode(', ', self::missing()).' missing.'];
         }
+        if (! OutboundUrl::isPublic(strtr((string) setting('sms_url'), array_fill_keys(self::PLACEHOLDERS, 'x')))) {
+            return ['ok' => false, 'id' => null, 'error' => 'The SMS API address must be a public https address.'];
+        }
         $token = (string) MailSettings::secret('sms_token');
         $values = ['{phone}' => $to, '{message}' => $body, '{sender}' => self::get('sms_sender_id'), '{template_id}' => (string) $templateId];
 
@@ -76,7 +79,7 @@ class Sms
             if (self::method() === 'get') {
                 // Each value is encoded so a space, & or # in a message cannot change the address.
                 $url = strtr((string) setting('sms_url'), array_map('rawurlencode', $values + ['{token}' => $token]));
-                $response = Http::acceptJson()->timeout(20)->get($url);
+                $response = Http::acceptJson()->timeout(20)->withOptions(['allow_redirects' => false])->get($url);
             } else {
                 // Escaped so quotes or line breaks in a message cannot break the JSON.
                 $escape = fn (string $value) => substr(json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 1, -1);
@@ -84,7 +87,7 @@ class Sms
                 if (! is_array($payload)) {
                     return ['ok' => false, 'id' => null, 'error' => 'The request body in the SMS settings is not valid JSON.'];
                 }
-                $response = Http::withHeaders([self::get('sms_auth_header') => $token])->acceptJson()->timeout(20)->post((string) setting('sms_url'), $payload);
+                $response = Http::withHeaders([self::get('sms_auth_header') => $token])->acceptJson()->timeout(20)->withOptions(['allow_redirects' => false])->post((string) setting('sms_url'), $payload);
             }
 
             return $response->successful()

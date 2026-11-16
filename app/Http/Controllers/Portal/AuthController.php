@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Livewire\Careers\Apply;
 use App\Models\PortalUser;
 use App\Notifications\Portal\PortalVerifyEmail;
 use Illuminate\Auth\Events\PasswordReset;
@@ -64,7 +65,7 @@ class AuthController extends Controller
         }
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:120', Apply::NAME_RULE],
             'email' => ['required', 'email', 'max:255', 'unique:portal_users,email'],
             'company' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
