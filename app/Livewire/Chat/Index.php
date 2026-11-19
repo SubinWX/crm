@@ -107,7 +107,7 @@ class Index extends Component
         $unread = ChatMessage::where('recipient_id', $me->id)->whereNull('read_at')->selectRaw('sender_id, count(*) as n')->groupBy('sender_id')->pluck('n', 'sender_id');
         $last = ChatMessage::whereNotNull('recipient_id')->where(fn ($q) => $q->where('sender_id', $me->id)->orWhere('recipient_id', $me->id))
             ->selectRaw('case when sender_id = ? then recipient_id else sender_id end as other, max(id) as last_id', [$me->id])->groupBy('other')->pluck('last_id', 'other');
-        $people = User::active()->where('id', '!=', $me->id)->orderBy('name')->get()
+        $people = User::active()->with('jobRole')->where('id', '!=', $me->id)->orderBy('name')->get()
             ->sortByDesc(fn ($u) => $last[$u->id] ?? 0)->values();
 
         return view('livewire.chat.index', [

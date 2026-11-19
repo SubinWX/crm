@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Users;
 
+use App\Models\Lookup;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\UserInvited;
@@ -82,6 +83,7 @@ class Index extends Component
         $this->form = [
             'name' => '', 'email' => '', 'phone' => '', 'alt_phone' => '', 'date_of_birth' => '',
             'role' => in_array($this->role, $this->roles(), true) ? $this->role : $this->roles()[0], 'is_active' => true,
+            'job_role_id' => '', 'new_job_role' => '',
             'password' => '',
             'permissions' => ['clients.view', 'projects.view', 'tasks.manage'],
         ];
@@ -108,6 +110,7 @@ class Index extends Component
             'name' => $user->name, 'email' => $user->email, 'phone' => (string) $user->phone, 'alt_phone' => (string) $user->alt_phone,
             'date_of_birth' => $user->date_of_birth?->format('Y-m-d') ?? '',
             'role' => $user->role, 'is_active' => $user->is_active, 'permissions' => $user->permissions ?? [],
+            'job_role_id' => (string) ($user->job_role_id ?? ''), 'new_job_role' => '',
             'password' => '',
         ];
         $this->showForm = true;
@@ -122,6 +125,9 @@ class Index extends Component
             'form.alt_phone' => ['nullable', 'string', 'max:30'],
             'form.date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
             'form.role' => ['required', Rule::in($this->roles())],
+            'form.job_role_id' => ['nullable', Rule::exists('lookups', 'id')->where('type', 'job_role')],
+            // Super Admins can type a job role that is not in the list yet.
+            'form.new_job_role' => ['nullable', 'string', 'max:60'],
             'form.is_active' => ['boolean'],
             // Optional: leave empty to send an invitation (new user) or keep the current password (existing user).
             'form.password' => ['nullable', 'string', Password::min(8), 'max:200'],
@@ -144,6 +150,7 @@ class Index extends Component
             'alt_phone' => $this->form['alt_phone'] ?: null,
             'date_of_birth' => $this->form['date_of_birth'] ?: null,
             'role' => $this->form['role'],
+            'job_role_id' => $this->resolveJobRole(),
             'is_active' => (bool) $this->form['is_active'],
         ];
         // Access: only options this person may give for the chosen role are taken from the form. Anything the
@@ -220,6 +227,20 @@ class Index extends Component
         $me = auth()->user();
 
         return $me->isSuperAdmin() || array_diff($user->permissions ?? [], $me->assignablePermissions($user->role)) === [];
+    }
+
+    /** The chosen job role, or a new one typed by a Super Admin (added to the list, or matched if it is already there). */
+    protected function resolveJobRole(): ?int
+    {
+        $new = trim((string) ($this->form['new_job_role'] ?? ''));
+        if ($new !== '' && auth()->user()->isSuperAdmin()) {
+            $existing = Lookup::where('type', 'job_role')->whereRaw('lower(name) = ?', [mb_strtolower($new)])->first();
+
+            return ($existing ?? Lookup::create(['type' => 'job_role', 'name' => $new, 'is_active' => true,
+                'sort_order' => (int) Lookup::where('type', 'job_role')->max('sort_order') + 1]))->id;
+        }
+
+        return ($this->form['job_role_id'] ?? '') !== '' ? (int) $this->form['job_role_id'] : null;
     }
 
     /** For someone who lost their phone: clears two-step login so they can sign in with the password and set it up again. */
@@ -303,7 +324,8 @@ class Index extends Component
     public function render()
     {
         return view('livewire.users.index', [
-            'users' => User::withCount('equipment')->where('role', in_array($this->role, $this->roles(), true) ? $this->role : $this->roles()[0])->orderByDesc('is_active')->orderBy('name')->get(),
+            'jobRoles' => $this->showForm ? Lookup::where('type', 'job_role')->orderBy('sort_order')->orderBy('name')->get() : collect(),
+            'users' => User::with('jobRole')->withCount('equipment')->where('role', in_array($this->role, $this->roles(), true) ? $this->role : $this->roles()[0])->orderByDesc('is_active')->orderBy('name')->get(),
             'counts' => collect(User::ROLES)->map(fn ($label, $role) => User::where('role', $role)->count())->all(),
             'staffScope' => $this->scope === 'staff',
             'roleTabs' => collect($this->roles())->mapWithKeys(fn ($role) => [$role => User::ROLES[$role].'s'])->all(),

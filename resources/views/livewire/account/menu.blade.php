@@ -12,7 +12,7 @@
             <div class="min-w-0">
                 <p class="truncate text-base font-semibold text-stone-900">{{ $user->name }}</p>
                 <p class="truncate text-sm text-stone-500">{{ $user->email }}</p>
-                <p class="mt-0.5 text-xs text-stone-500">{{ $user->role_label }}</p>
+                <p class="mt-0.5 text-xs text-stone-500">{{ $user->jobRole ? $user->jobRole->name.' · ' : '' }}{{ $user->role_label }}</p>
             </div>
         </div>
         <div class="p-2">

@@ -15,7 +15,8 @@
         'Nationality' => $val($person->nationality),
         'Blood group' => $val($person->blood_group),
         'Joined on' => fmt_date($person->joined_on, 'Not set'),
-        'Role' => $person->role_label,
+        'Job role' => $person->jobRole?->name ?? 'Not set',
+        'Access level' => $person->role_label,
     ];
     $emergency = [
         'Contact name' => $val($person->emergency_name),
@@ -38,7 +39,7 @@
         <div class="card p-5 text-center">
             <x-avatar :src="$person->avatarUrl()" :name="$person->name" size="size-28" class="mx-auto text-3xl" />
             <p class="mt-3 text-lg font-semibold text-stone-900">{{ $person->name }}</p>
-            <p class="text-sm text-stone-500">{{ $person->role_label }}@unless ($person->is_active) · <span class="text-red-700">Deactivated</span>@endunless</p>
+            <p class="text-sm text-stone-500">{{ $person->jobRole ? $person->jobRole->name.' · ' : '' }}{{ $person->role_label }}@unless ($person->is_active) · <span class="text-red-700">Deactivated</span>@endunless</p>
             <p class="mt-0.5 truncate text-xs text-stone-500">{{ $person->email }}</p>
 
             @if ($balances->isNotEmpty())

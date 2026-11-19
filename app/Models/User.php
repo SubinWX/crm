@@ -6,6 +6,7 @@ use App\Models\Concerns\LogsActivity;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -125,7 +126,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'phone', 'alt_phone', 'date_of_birth', 'joined_on', 'avatar_path',
         'gender', 'personal_email', 'address', 'city', 'state', 'pincode', 'nationality', 'blood_group',
-        'emergency_name', 'emergency_relation', 'emergency_phone', 'emergency_alt_phone', 'role', 'is_active', 'permissions',
+        'emergency_name', 'emergency_relation', 'emergency_phone', 'emergency_alt_phone', 'role', 'job_role_id', 'is_active', 'permissions',
         'invitation_token', 'invited_at', 'invited_by', 'last_login_at',
     ];
 
@@ -236,6 +237,18 @@ class User extends Authenticatable
     public function scopeTeam(Builder $query): Builder
     {
         return $query->where('role', '!=', self::ROLE_SUB_ADMIN);
+    }
+
+    /** What the person does (Manager, Developer…). Their access level is the separate "role" column. */
+    public function jobRole(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'job_role_id');
+    }
+
+    /** The job role when one is set, otherwise the access level: the short label shown under a person's name. */
+    public function getTitleLabelAttribute(): string
+    {
+        return $this->jobRole?->name ?? $this->role_label;
     }
 
     public function equipment(): HasMany

@@ -6,6 +6,7 @@ use App\Livewire\Users\Index as UsersIndex;
 use App\Livewire\Work\Projects;
 use App\Livewire\Work\Renewals;
 use App\Models\Client;
+use App\Models\Lookup;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -140,5 +141,45 @@ class StaffManagementTest extends TestCase
         $super = User::factory()->superAdmin()->create();
         Livewire::actingAs($super)->test(UsersIndex::class, ['scope' => 'staff'])->call('create')
             ->assertSee('View projects')->assertSee('Add and edit hosting and renewals')->assertSee('View clients')->assertSeeHtml('role="switch"')->assertSee('All on');
+    }
+
+    public function test_people_have_a_job_role_that_can_be_chosen_added_and_changed(): void
+    {
+        $super = User::factory()->superAdmin()->create(['name' => 'Asha Super']);
+        $admin = User::factory()->create(['role' => User::ROLE_SUB_ADMIN]);
+        $role = fn (string $name) => Lookup::where('type', 'job_role')->where('name', $name)->first();
+        $this->assertNotNull($role('Developer'));
+        $this->assertNotNull($role('Team Lead'));
+
+        // Choosing one from the list when adding a person.
+        Livewire::actingAs($super)->test(UsersIndex::class, ['scope' => 'staff'])->call('create')->assertSee('Job role')->assertSee('Team Lead')->assertSee('Or add a new job role')
+            ->set('form.name', 'Dev Person')->set('form.email', 'dev@example.com')->set('form.password', 'secret-pass-1')
+            ->set('form.job_role_id', '999999')->call('save')->assertHasErrors('form.job_role_id')
+            ->set('form.job_role_id', (string) $role('Developer')->id)->call('save')->assertHasNoErrors();
+        $dev = User::where('email', 'dev@example.com')->firstOrFail();
+        $this->assertSame(['Developer', 'Developer', User::ROLE_STAFF], [$dev->jobRole->name, $dev->title_label, $dev->role]);
+        // It shows in the list and on the profile, next to the access level.
+        Livewire::actingAs($super)->test(UsersIndex::class, ['scope' => 'staff'])->assertSee('Dev Person')->assertSee('Developer');
+        $this->actingAs($super)->get('/profile/'.$dev->id)->assertOk()->assertSee('Job role')->assertSee('Developer')->assertSee('Access level');
+
+        // Changing it, and typing one that is not in the list yet (added once, reused after that).
+        Livewire::actingAs($super)->test(UsersIndex::class, ['scope' => 'staff'])->call('edit', $dev->id)->assertSet('form.job_role_id', (string) $role('Developer')->id)
+            ->set('form.new_job_role', 'SEO Specialist')->call('save')->assertHasNoErrors();
+        $this->assertSame('SEO Specialist', $dev->fresh()->jobRole->name);
+        Livewire::actingAs($super)->test(UsersIndex::class, ['scope' => 'staff'])->call('create')->set('form.name', 'Second')->set('form.email', 'second-seo@example.com')
+            ->set('form.password', 'secret-pass-1')->set('form.new_job_role', 'seo specialist')->call('save')->assertHasNoErrors();
+        $this->assertSame(1, Lookup::where('type', 'job_role')->whereRaw('lower(name) = ?', ['seo specialist'])->count());
+        // Clearing it.
+        Livewire::actingAs($super)->test(UsersIndex::class, ['scope' => 'staff'])->call('edit', $dev->id)->set('form.job_role_id', '')->call('save')->assertHasNoErrors();
+        $this->assertSame([null, 'Staff'], [$dev->fresh()->job_role_id, $dev->fresh()->title_label]);
+
+        // An Admin picks from the list but cannot add to it; a job role never changes what someone can open.
+        Livewire::actingAs($admin)->test(UsersIndex::class, ['scope' => 'staff'])->call('edit', $dev->id)->assertDontSee('Or add a new job role')
+            ->set('form.new_job_role', 'Made Up Role')->set('form.job_role_id', (string) $role('Manager')->id)->call('save')->assertHasNoErrors();
+        $this->assertSame('Manager', $dev->fresh()->jobRole->name);
+        $this->assertNull($role('Made Up Role'));
+        $this->assertFalse($dev->fresh()->can('team.manage'));
+        // The list itself is kept in Settings.
+        $this->actingAs($super)->get('/settings?tab=job_role')->assertOk()->assertSee('Job roles (people)')->assertSee('Team Lead');
     }
 }

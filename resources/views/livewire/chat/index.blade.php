@@ -14,7 +14,7 @@
                 @foreach ($people as $p)
                     <button type="button" wire:key="person-{{ $p->id }}" wire:click="open('{{ $p->id }}')" @class(['flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm', 'bg-brand-50 font-semibold text-brand-900' => $partner?->id === $p->id, 'text-stone-700 hover:bg-stone-50' => $partner?->id !== $p->id])>
                         <x-avatar :src="$p->avatarUrl()" :name="$p->name" size="size-8" />
-                        <span class="min-w-0 flex-1"><span class="block truncate">{{ $p->name }}</span><span class="block truncate text-xs font-normal text-stone-500">{{ $p->role_label }}</span></span>
+                        <span class="min-w-0 flex-1"><span class="block truncate">{{ $p->name }}</span><span class="block truncate text-xs font-normal text-stone-500">{{ $p->title_label }}</span></span>
                         @if ($unread[$p->id] ?? 0) <span class="rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">{{ $unread[$p->id] }}</span> @endif
                     </button>
                 @endforeach

@@ -81,7 +81,8 @@
                             <td class="font-medium text-stone-900">
                                 <div class="flex items-center gap-3">
                                     <x-avatar :src="$user->avatarUrl()" :name="$user->name" />
-                                    <span>{{ $user->name }} @if ($user->id === auth()->id()) <span class="text-xs font-normal text-stone-500">(you)</span> @endif</span>
+                                    <span>{{ $user->name }} @if ($user->id === auth()->id()) <span class="text-xs font-normal text-stone-500">(you)</span> @endif
+                                        @if ($user->jobRole) <span class="block text-xs font-normal text-stone-500">{{ $user->jobRole->name }}</span> @endif</span>
                                 </div>
                             </td>
                             <td>{{ $user->email }}</td>
@@ -160,14 +161,25 @@
                     </x-field>
                 @endif
                 @if ($staffScope)
-                    <x-field label="Role"><p class="py-2 text-sm text-stone-700">Staff <span class="text-stone-500">· signs in on the staff page</span></p></x-field>
+                    <x-field label="Access level"><p class="py-2 text-sm text-stone-700">Staff <span class="text-stone-500">· signs in on the staff page</span></p></x-field>
                 @else
-                    <x-field label="Role" name="form.role" required>
+                    <x-field label="Access level" name="form.role" required>
                         <select class="input" wire:model.live="form.role">
                             @foreach ($roleTabs as $key => $label) <option value="{{ $key }}">{{ \App\Models\User::ROLES[$key] }}</option> @endforeach
                         </select>
                     </x-field>
                 @endif
+                <x-field label="Job role" name="form.job_role_id" hint="What this person does. It does not change what they can open; that is set by the access switches below.">
+                    <select class="input" wire:model="form.job_role_id">
+                        <option value="">Not set</option>
+                        @foreach ($jobRoles as $jr) @if ($jr->is_active || (string) $jr->id === (string) $form['job_role_id']) <option value="{{ $jr->id }}">{{ $jr->name }}{{ $jr->is_active ? '' : ' (inactive)' }}</option> @endif @endforeach
+                    </select>
+                </x-field>
+                @can('admin')
+                    <x-field label="Or add a new job role" name="form.new_job_role" hint="Type one that is not in the list. Rename or remove job roles in Settings → Job roles.">
+                        <input class="input" type="text" wire:model="form.new_job_role" placeholder="e.g. SEO Specialist">
+                    </x-field>
+                @endcan
                 <x-field label="Active status" name="form.is_active">
                     <label class="flex items-center gap-2 py-2 text-sm"><input type="checkbox" class="rounded border-stone-300" wire:model="form.is_active"> Account is active</label>
                 </x-field>

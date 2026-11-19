@@ -25,6 +25,7 @@ class Lookup extends Model
         'equipment_type' => 'Equipment types',
         'job_department' => 'Job departments (Careers)',
         'leave_type' => 'Leave types',
+        'job_role' => 'Job roles (people)',
     ];
 
     protected static function booted(): void

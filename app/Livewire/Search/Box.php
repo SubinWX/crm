@@ -72,9 +72,9 @@ class Box extends Component
             ->orderBy('title')->limit(self::PER_GROUP)->get()
             ->map(fn ($a) => ['title' => $a->title, 'sub' => (string) $a->category, 'url' => route('knowledge-base', ['article' => $a->id])])->all();
         // People: whoever the signed-in person may open the profile of.
-        $groups['People'] = $user->managedPeople()->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like))
+        $groups['People'] = $user->managedPeople()->with('jobRole')->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like))
             ->orderBy('name')->limit(self::PER_GROUP)->get()
-            ->map(fn ($p) => ['title' => $p->name, 'sub' => $p->role_label, 'url' => route('profile.show', $p)])->all();
+            ->map(fn ($p) => ['title' => $p->name, 'sub' => $p->title_label, 'url' => route('profile.show', $p)])->all();
 
         return array_filter($groups);
     }
