@@ -2,14 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Office\BankDetails;
 use App\Livewire\Users\Index as UsersIndex;
 use App\Livewire\Work\Projects;
 use App\Livewire\Work\Renewals;
+use App\Models\ActivityLog;
+use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Lookup;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -181,5 +185,44 @@ class StaffManagementTest extends TestCase
         $this->assertFalse($dev->fresh()->can('team.manage'));
         // The list itself is kept in Settings.
         $this->actingAs($super)->get('/settings?tab=job_role')->assertOk()->assertSee('Job roles (people)')->assertSee('Team Lead');
+    }
+
+    public function test_bank_details_are_kept_and_copied_by_admins_and_super_admins_only(): void
+    {
+        $super = User::factory()->superAdmin()->create(['name' => 'Asha Super']);
+        $admin = User::factory()->create(['name' => 'Sam Admin', 'role' => User::ROLE_SUB_ADMIN]);
+        $staff = User::factory()->create(['role' => User::ROLE_STAFF, 'permissions' => ['finance.manage', 'clients.manage']]);
+
+        // Staff cannot open it, whatever access they have.
+        $this->actingAs($staff)->get('/bank-details')->assertForbidden();
+        Livewire::actingAs($staff)->test(BankDetails::class)->assertForbidden();
+        $this->actingAs($admin)->get('/bank-details')->assertOk()->assertSee('No bank details yet');
+
+        // An Admin adds an account; the number and codes are tidied and checked.
+        $page = Livewire::actingAs($admin)->test(BankDetails::class)->call('edit')->call('save')
+            ->assertHasErrors(['form.label', 'form.account_name', 'form.bank_name', 'form.account_number']);
+        $page->set('form.label', 'Main current account')->set('form.account_name', 'WX Partners LLP')->set('form.bank_name', 'HDFC Bank')
+            ->set('form.account_number', '5020 0012 3456 78')->set('form.ifsc', 'hdfc123')->set('form.upi_id', 'not a upi')->call('save')->assertHasErrors(['form.ifsc', 'form.upi_id'])
+            ->set('form.ifsc', 'hdfc0001234')->set('form.upi_id', 'wxpartners@hdfcbank')->set('form.branch', 'Kozhikode Main')->set('form.notes', 'Internal note')
+            ->set('form.updated_by', $super->id)->call('save')->assertHasNoErrors();
+        $account = BankAccount::firstOrFail();
+        $this->assertSame(['50200012345678', 'HDFC0001234', true, $admin->id], [$account->account_number, $account->ifsc, $account->is_default, $account->updated_by]);
+        // The account number is not readable in the database itself.
+        $this->assertStringNotContainsString('50200012345678', (string) DB::table('bank_accounts')->value('account_number'));
+
+        // The page shows every detail and one block with all of them, without the internal note.
+        $this->assertSame("Account name: WX Partners LLP\nBank: HDFC Bank\nAccount number: 50200012345678\nIFSC code: HDFC0001234\nBranch: Kozhikode Main\nAccount type: Current\nUPI ID: wxpartners@hdfcbank", $account->asText());
+        $this->actingAs($super)->get('/bank-details')->assertOk()->assertSee('50200012345678')->assertSee('Copy all')->assertSee('All details, ready to paste')->assertSee('Default');
+
+        // A second account can take over as the default; there is always exactly one.
+        Livewire::actingAs($super)->test(BankDetails::class)->call('edit')->set('form.label', 'Savings')->set('form.account_name', 'WX Partners LLP')
+            ->set('form.bank_name', 'SBI')->set('form.account_number', '30001234567')->set('form.is_default', true)->call('save')->assertHasNoErrors();
+        $this->assertSame(['Savings'], BankAccount::where('is_default', true)->pluck('label')->all());
+
+        // Changes are written to the activity log. Only a Super Admin deletes.
+        $this->assertTrue(ActivityLog::where('description', 'like', '%Bank details “Main current account” added by Sam Admin%')->exists());
+        Livewire::actingAs($admin)->test(BankDetails::class)->call('delete', $account->id)->assertForbidden();
+        Livewire::actingAs($super)->test(BankDetails::class)->call('delete', BankAccount::where('label', 'Savings')->value('id'));
+        $this->assertSame(['Main current account', true], [BankAccount::sole()->label, BankAccount::sole()->is_default]);
     }
 }

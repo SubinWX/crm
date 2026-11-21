@@ -178,6 +178,8 @@ Route::middleware(['auth:web', 'active', 'two-factor.setup'])->group(function ()
     Route::get('/support-desk/portal-users', Livewire\Support\PortalUsers::class)->middleware('can:portal-users.manage')->name('support.portal-users');
 
     // Staff accounts and what each one can use: Super Admins and Admins.
+    // The company's bank details: Super Admins and Admins.
+    Route::get('/bank-details', Livewire\Office\BankDetails::class)->middleware('can:staff.manage')->name('bank-details');
     Route::get('/staff-members', Livewire\Users\Index::class)->defaults('scope', 'staff')->middleware('can:staff.manage')->name('staff.index');
 
     // Administration: Super Admins only

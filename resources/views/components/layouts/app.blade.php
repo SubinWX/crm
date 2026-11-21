@@ -73,6 +73,7 @@
             ['Administration', 'shield', [
                 ['users.index', 'Admins', 'shield', $user->can('admin'), 'users.*'],
                 ['staff.index', 'Staff', 'users', $user->can('staff.manage'), 'staff.index'],
+                ['bank-details', 'Bank Details', 'cash', $user->can('staff.manage'), 'bank-details'],
                 ['activity.index', 'Activity Log', 'clock', $user->can('admin'), 'activity.*'],
                 ['settings.index', 'Settings', 'cog', $user->can('admin'), ['settings.index', 'quote-templates.*']],
                 ['settings.messaging', 'Email, WhatsApp & SMS', 'bell', $user->can('admin'), 'settings.messaging'],
